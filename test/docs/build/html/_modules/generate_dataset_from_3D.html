@@ -1,0 +1,936 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="ru" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>generate_dataset_from_3D &mdash; документация Dataset Generator 1.0</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=9ca2116e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/translations.js?v=cd1d70c9"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Алфавитный указатель" href="../genindex.html" />
+    <link rel="search" title="Поиск" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Dataset Generator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Поиск в документации" aria-label="Поиск в документации" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Меню навигации">
+              <p class="caption" role="heading"><span class="caption-text">Модули проекта:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Модули проекта</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Меню навигации для мобильных устройств" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Dataset Generator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Навигация по страницам">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Код модуля</a></li>
+      <li class="breadcrumb-item active">generate_dataset_from_3D</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Исходный код generate_dataset_from_3D</h1><div class="highlight"><pre>
+<span></span><span class="c1"># generate_dataset_from_3D.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Модуль для генерации фотореалистичного датасета из 3D моделей.</span>
+
+<span class="sd">Создает изображения инструментов с различных ракурсов с реалистичным освещением,</span>
+<span class="sd">текстурами и фонами. Генерирует как изображения с фоном, так и с прозрачным фоном.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyvista</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">trimesh</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span><span class="p">,</span> <span class="n">ImageEnhance</span><span class="p">,</span> <span class="n">ImageFilter</span><span class="p">,</span> <span class="n">ImageDraw</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">concurrent.futures</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">multiprocessing</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">trimesh</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tr</span>
+
+<span class="c1"># Глобальный кэш для устойчивых положений объектов</span>
+<span class="n">STABLE_POSES_CACHE</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_contact_metrics</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">T</span><span class="p">,</span> <span class="n">eps_z</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Вычисляет метрики контакта объекта с поверхностью.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        mesh: 3D меш объекта</span>
+<span class="sd">        T: Матрица трансформации</span>
+<span class="sd">        eps_z: Погрешность для определения контактных точек</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: (площадь контакта, радиус гирации, высота центра масс)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mesh_tf</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">apply_transform</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+    <span class="n">pts</span> <span class="o">=</span> <span class="n">mesh_tf</span><span class="o">.</span><span class="n">vertices</span><span class="p">[</span><span class="n">mesh_tf</span><span class="o">.</span><span class="n">vertices</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">eps_z</span><span class="p">]</span>  <span class="c1"># Точки контакта с поверхностью</span>
+    <span class="k">if</span> <span class="n">pts</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>  <span class="c1"># защита от вырожденных случаев</span>
+        <span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ch2d</span> <span class="o">=</span> <span class="n">tr</span><span class="o">.</span><span class="n">PointCloud</span><span class="p">(</span><span class="n">pts</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">])</span><span class="o">.</span><span class="n">convex_hull</span>
+        <span class="n">area</span> <span class="o">=</span> <span class="n">ch2d</span><span class="o">.</span><span class="n">area</span>  <span class="c1"># Площадь контакта</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># на всякий случай</span>
+        <span class="n">area</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="n">mu</span> <span class="o">=</span> <span class="n">pts</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">rg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(((</span><span class="n">pts</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">mu</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())</span>
+    <span class="n">h_cm</span> <span class="o">=</span> <span class="n">mesh_tf</span><span class="o">.</span><span class="n">center_mass</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># Высота центра масс</span>
+    <span class="k">return</span> <span class="n">area</span><span class="p">,</span> <span class="n">rg</span><span class="p">,</span> <span class="n">h_cm</span>
+
+
+<div class="viewcode-block" id="stable_pose_matrices">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.stable_pose_matrices">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">stable_pose_matrices</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">area_ratio</span><span class="o">=</span><span class="mf">0.00</span><span class="p">,</span> <span class="n">stability_ratio</span><span class="o">=</span><span class="mf">0.9</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Находит устойчивые положения объекта на поверхности.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        mesh: 3D меш объекта</span>
+<span class="sd">        n_samples: Количество сэмплов для анализа</span>
+<span class="sd">        area_ratio: Минимальное отношение площади контакта к максимальной</span>
+<span class="sd">        stability_ratio: Максимальное отношение высоты к радиусу гирации</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        list: Список матриц трансформации для устойчивых положений</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">convex</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">convex_hull</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">mesh</span><span class="o">.</span><span class="n">is_convex</span> <span class="k">else</span> <span class="n">mesh</span>
+    <span class="n">poses</span> <span class="o">=</span> <span class="n">convex</span><span class="o">.</span><span class="n">compute_stable_poses</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">metrics</span> <span class="o">=</span> <span class="p">[</span><span class="n">_contact_metrics</span><span class="p">(</span><span class="n">convex</span><span class="p">,</span> <span class="n">T</span><span class="p">)</span> <span class="k">for</span> <span class="n">T</span> <span class="ow">in</span> <span class="n">poses</span><span class="p">]</span>
+    <span class="n">areas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">])</span>
+    <span class="n">area_max</span> <span class="o">=</span> <span class="n">areas</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">initial</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
+
+    <span class="c1"># 1. жёсткий фильтр по площади контакта и устойчивости</span>
+    <span class="n">good</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">T</span><span class="p">,</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">rg</span><span class="p">,</span> <span class="n">h_cm</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">poses</span><span class="p">,</span> <span class="n">metrics</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="o">&gt;=</span> <span class="n">area_ratio</span> <span class="o">*</span> <span class="n">area_max</span> <span class="ow">and</span> <span class="n">h_cm</span> <span class="o">/</span> <span class="p">(</span><span class="n">rg</span> <span class="o">+</span> <span class="mf">1e-6</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">stability_ratio</span><span class="p">:</span>
+            <span class="n">good</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+
+    <span class="c1"># 2. если ничего не осталось — берём 2 самых низких положения</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">good</span><span class="p">:</span>
+        <span class="n">poses_sorted</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">poses</span><span class="p">,</span> <span class="n">metrics</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">])</span>  <span class="c1"># сортировка по h_cm</span>
+        <span class="n">good</span> <span class="o">=</span> <span class="p">[</span><span class="n">T</span> <span class="k">for</span> <span class="n">T</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">poses_sorted</span><span class="p">[:</span><span class="mi">2</span><span class="p">]]</span>
+
+    <span class="n">good</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">M</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])[</span><span class="mi">2</span><span class="p">])</span>  <span class="c1"># сортировка по высоте</span>
+    <span class="k">return</span> <span class="n">good</span></div>
+
+
+
+<div class="viewcode-block" id="mat_to_euler_sxyz">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.mat_to_euler_sxyz">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">mat_to_euler_sxyz</span><span class="p">(</span><span class="n">matrix</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Конвертирует матрицу вращения в углы Эйлера.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">tr</span><span class="o">.</span><span class="n">transformations</span><span class="o">.</span><span class="n">euler_from_matrix</span><span class="p">(</span><span class="n">matrix</span><span class="p">[:</span><span class="mi">3</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="s1">&#39;sxyz&#39;</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="get_stable_rotations">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.get_stable_rotations">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_stable_rotations</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_kw</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Получает устойчивые вращения объекта.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        mesh: 3D меш объекта</span>
+<span class="sd">        n_samples: Количество сэмплов</span>
+<span class="sd">        **filter_kw: Дополнительные параметры фильтрации</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        list: Список углов Эйлера для устойчивых положений</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mats</span> <span class="o">=</span> <span class="n">stable_pose_matrices</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_kw</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">mat_to_euler_sxyz</span><span class="p">(</span><span class="n">M</span><span class="p">)</span> <span class="k">for</span> <span class="n">M</span> <span class="ow">in</span> <span class="n">mats</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="get_random_stable_rotation">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.get_random_stable_rotation">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_random_stable_rotation</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">cache_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_samples</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_kw</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Выбирает случайное устойчивое вращение из кэша или вычисляет новые.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        mesh: 3D меш объекта</span>
+<span class="sd">        cache_key: Ключ для кэширования результатов</span>
+<span class="sd">        n_samples: Количество сэмплов</span>
+<span class="sd">        **filter_kw: Дополнительные параметры фильтрации</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: Углы Эйлера (roll, pitch, yaw)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">STABLE_POSES_CACHE</span>
+    <span class="k">if</span> <span class="n">cache_key</span> <span class="ow">and</span> <span class="n">cache_key</span> <span class="ow">in</span> <span class="n">STABLE_POSES_CACHE</span><span class="p">:</span>
+        <span class="n">rots</span> <span class="o">=</span> <span class="n">STABLE_POSES_CACHE</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span>  <span class="c1"># Используем кэшированные результаты</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rots</span> <span class="o">=</span> <span class="n">get_stable_rotations</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="o">**</span><span class="n">filter_kw</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cache_key</span><span class="p">:</span>
+            <span class="n">STABLE_POSES_CACHE</span><span class="p">[</span><span class="n">cache_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">rots</span>  <span class="c1"># Сохраняем в кэш</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">rots</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">180</span><span class="p">,</span> <span class="mi">180</span><span class="p">)</span>  <span class="c1"># Случайное вращение если нет устойчивых</span>
+
+    <span class="n">roll</span><span class="p">,</span> <span class="n">pitch</span><span class="p">,</span> <span class="n">yaw</span> <span class="o">=</span> <span class="n">rots</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rots</span><span class="p">))]</span>
+    <span class="n">yaw</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">180</span><span class="p">,</span> <span class="mi">180</span><span class="p">)</span>  <span class="c1"># Добавляем случайный поворот вокруг вертикальной оси</span>
+    <span class="k">return</span> <span class="n">roll</span><span class="p">,</span> <span class="n">pitch</span><span class="p">,</span> <span class="n">yaw</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_scan_textures</span><span class="p">(</span><span class="n">textures_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Сканирует директорию с текстурами для фона.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        textures_dir (Path): Путь к директории с текстурами</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        list[Path | None]: Список путей к текстурам, None для серого фона</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">textures_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span>
+    <span class="n">exts</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;.jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;.jpeg&quot;</span><span class="p">,</span> <span class="s2">&quot;.png&quot;</span><span class="p">,</span> <span class="s2">&quot;.bmp&quot;</span><span class="p">,</span> <span class="s2">&quot;.tiff&quot;</span><span class="p">}</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">textures_dir</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">exts</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="n">files</span>  <span class="c1"># None = серый фон всегда доступен</span>
+
+
+<div class="viewcode-block" id="load_classes">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.load_classes">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_classes</span><span class="p">(</span><span class="n">class_file_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Загружает словарь классов из файла.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        class_file_path (str): Путь к файлу с классами</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict[str, int]: Словарь {имя_класса: id_класса}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">classes</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">class_file_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">part</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">class_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">class_name</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="n">classes</span><span class="p">[</span><span class="n">class_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_id</span>
+                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка при обработке строки: </span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка при загрузке файла классов </span><span class="si">{</span><span class="n">class_file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">classes</span></div>
+
+
+
+<div class="viewcode-block" id="get_class_id">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.get_class_id">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_class_id</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">class_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Определяет ID класса по имени файла 3D модели.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        filename (Path): Путь к файлу 3D модели</span>
+<span class="sd">        class_dict (Dict[str, int]): Словарь классов</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Optional[int]: ID класса или None если не найден</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">base_name</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">stem</span>  <span class="c1"># Удаляем расширение</span>
+
+    <span class="c1"># Удаляем цифру и пробел в начале, если они есть</span>
+    <span class="n">cleaned_name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^\d+\s*&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">base_name</span><span class="p">)</span>
+
+    <span class="c1"># Ищем точное совпадение</span>
+    <span class="k">if</span> <span class="n">cleaned_name</span> <span class="ow">in</span> <span class="n">class_dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">class_dict</span><span class="p">[</span><span class="n">cleaned_name</span><span class="p">]</span>
+
+    <span class="c1"># Попробуем более гибкое сопоставление (без учета регистра и некоторых символов)</span>
+    <span class="n">cleaned_name_lower</span> <span class="o">=</span> <span class="n">cleaned_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;«&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;»&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">class_name</span><span class="p">,</span> <span class="n">class_id</span> <span class="ow">in</span> <span class="n">class_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">class_name_lower</span> <span class="o">=</span> <span class="n">class_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;«&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;»&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">class_name_lower</span> <span class="o">==</span> <span class="n">cleaned_name_lower</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">class_id</span>
+
+    <span class="c1"># Если не найдено, попробуем найти по подстроке</span>
+    <span class="k">for</span> <span class="n">class_name</span><span class="p">,</span> <span class="n">class_id</span> <span class="ow">in</span> <span class="n">class_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">class_name_lower</span> <span class="o">=</span> <span class="n">class_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;«&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;»&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">cleaned_name_lower</span> <span class="ow">in</span> <span class="n">class_name_lower</span> <span class="ow">or</span> <span class="n">class_name_lower</span> <span class="ow">in</span> <span class="n">cleaned_name_lower</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">class_id</span>
+
+    <span class="c1"># Если все еще не найдено</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Предупреждение: класс для файла &#39;</span><span class="si">{</span><span class="n">filename</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; не найден. Очищено: &#39;</span><span class="si">{</span><span class="n">cleaned_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="random_color">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.random_color">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">random_color</span><span class="p">(</span><span class="n">light_color_range</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Генерирует случайный цвет в заданном диапазоне яркости.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">light_color_range</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="load_surface_texture">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.load_surface_texture">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_surface_texture</span><span class="p">(</span><span class="n">textures_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Загружает текстуру поверхности (стола).</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        textures_dir (Path): Базовая директория с текстурами</span>
+<span class="sd">        path (Path | None): Путь к текстуре или None для серого фона</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Изображение текстуры 512×512 RGB</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># однотонный серый</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">200</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="n">full_path</span> <span class="o">=</span> <span class="n">path</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">full_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[Warn] Текстура не найдена: </span><span class="si">{</span><span class="n">full_path</span><span class="si">}</span><span class="s2">, используем серый фон&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">200</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">full_path</span><span class="p">)</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s2">&quot;RGB&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="augment_surface">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.augment_surface">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">augment_surface</span><span class="p">(</span><span class="n">arr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">surf_bright</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Аугментирует текстуру поверхности изменением яркости и добавлением шума.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        arr (np.ndarray): Исходное изображение текстуры</span>
+<span class="sd">        surf_bright (Tuple[float, float]): Диапазон изменения яркости</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        np.ndarray: Аугментированное изображение</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+    <span class="c1"># Изменение яркости</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">surf_bright</span><span class="p">)</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">ImageEnhance</span><span class="o">.</span><span class="n">Brightness</span><span class="p">(</span><span class="n">img</span><span class="p">)</span><span class="o">.</span><span class="n">enhance</span><span class="p">(</span><span class="n">factor</span><span class="p">)</span>
+    <span class="c1"># Добавление шума (размытия)</span>
+    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ImageFilter</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">radius</span><span class="o">=</span><span class="mf">0.4</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_dirt">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.add_dirt">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_dirt</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Добавляет пятна загрязнений на текстуру объекта.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        img (Image.Image): Исходное изображение текстуры</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Image.Image: Текстура с добавленными загрязнениями</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">dirt</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s2">&quot;RGBA&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>  <span class="c1"># Прозрачный слой для загрязнений</span>
+    <span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">dirt</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">12</span><span class="p">)):</span>  <span class="c1"># Случайное количество пятен</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">h</span> <span class="o">/</span> <span class="mi">4</span><span class="p">))</span>  <span class="c1"># Случайный размер</span>
+        <span class="n">opacity</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">90</span><span class="p">)</span>   <span class="c1"># Случайная прозрачность</span>
+        <span class="n">draw</span><span class="o">.</span><span class="n">ellipse</span><span class="p">([</span><span class="n">x</span> <span class="o">-</span> <span class="n">r</span><span class="p">,</span> <span class="n">y</span> <span class="o">-</span> <span class="n">r</span><span class="p">,</span> <span class="n">x</span> <span class="o">+</span> <span class="n">r</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">r</span><span class="p">],</span> <span class="n">fill</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">opacity</span><span class="p">))</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s2">&quot;RGBA&quot;</span><span class="p">)</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">alpha_composite</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">dirt</span><span class="p">)</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s2">&quot;RGB&quot;</span><span class="p">)</span>  <span class="c1"># Наложение слоев</span>
+    <span class="k">return</span> <span class="n">img</span></div>
+
+
+
+<div class="viewcode-block" id="calculate_view_angle">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.calculate_view_angle">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">calculate_view_angle</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">distance</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Вычисляет угол обзора камеры для полного охвата объекта.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        mesh: 3D меш объекта</span>
+<span class="sd">        distance: Расстояние от камеры до объекта</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        float: Угол обзора в градусах</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">bounds</span>
+    <span class="c1"># Получаем размеры объекта</span>
+    <span class="n">x_size</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">y_size</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">z_size</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">-</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+    <span class="c1"># Определяем максимальный размер объекта</span>
+    <span class="n">max_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">x_size</span><span class="p">,</span> <span class="n">y_size</span><span class="p">,</span> <span class="n">z_size</span><span class="p">)</span>
+    <span class="c1"># Вычисляем угол обзора (в радианах)</span>
+    <span class="n">view_angle_rad</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">atan</span><span class="p">(</span><span class="n">max_size</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">distance</span><span class="p">))</span>
+    <span class="c1"># Конвертируем в градусы</span>
+    <span class="n">view_angle_deg</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">degrees</span><span class="p">(</span><span class="n">view_angle_rad</span><span class="p">)</span>
+    <span class="c1"># Добавляем небольшой запас (30%)</span>
+    <span class="k">return</span> <span class="n">view_angle_deg</span> <span class="o">*</span> <span class="mf">1.3</span></div>
+
+
+
+<div class="viewcode-block" id="load_and_prepare_mesh">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.load_and_prepare_mesh">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_and_prepare_mesh</span><span class="p">(</span><span class="n">glb_path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Загружает и подготавливает 3D меш для рендеринга.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        glb_path: Путь к файлу .glb</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Trimesh: Подготовленный меш</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Загружаем модель</span>
+    <span class="n">tm_mesh</span> <span class="o">=</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">glb_path</span><span class="p">)</span>
+
+    <span class="c1"># Если это сцена, извлекаем и объединяем все меш с правильными трансформации</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tm_mesh</span><span class="p">,</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">Scene</span><span class="p">):</span>
+        <span class="n">meshes</span> <span class="o">=</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">dump</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meshes</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">meshes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">tm_mesh</span> <span class="o">=</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">util</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">meshes</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meshes</span><span class="p">,</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">Trimesh</span><span class="p">):</span>
+            <span class="n">tm_mesh</span> <span class="o">=</span> <span class="n">meshes</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;В файле не найдено ни одной геометрии&quot;</span><span class="p">)</span>
+
+    <span class="c1"># НОРМАЛИЗАЦИЯ размера и положения</span>
+    <span class="n">tm_mesh</span><span class="o">.</span><span class="n">vertices</span> <span class="o">-=</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Центрирование</span>
+    <span class="n">max_len</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">tm_mesh</span><span class="o">.</span><span class="n">extents</span><span class="p">)</span>  <span class="c1"># Максимальный размер</span>
+    <span class="n">tm_mesh</span><span class="o">.</span><span class="n">vertices</span> <span class="o">/=</span> <span class="n">max_len</span>     <span class="c1"># Нормализация к единичному размеру</span>
+    <span class="n">tm_mesh</span><span class="o">.</span><span class="n">vertices</span> <span class="o">*=</span> <span class="mf">0.15</span>        <span class="c1"># Масштабирование к нужному размеру</span>
+
+    <span class="k">return</span> <span class="n">tm_mesh</span></div>
+
+
+
+<div class="viewcode-block" id="render_one_wrapper">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.render_one_wrapper">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">render_one_wrapper</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Обертка для функции render_one для многопоточности.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        args: Кортеж аргументов для render_one</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Результат выполнения render_one или None при ошибке</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">render_one</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка при рендере: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
+        <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="render_one">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.render_one">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">render_one</span><span class="p">(</span>
+        <span class="n">glb_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">output_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">transparent_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">img_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="n">class_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">prepared_mesh</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="c1"># Параметры рендеринга</span>
+        <span class="n">light_power</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">),</span>
+        <span class="n">light_color_range</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">surf_bright</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span>
+        <span class="n">obj_bright</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">),</span>
+        <span class="n">dirt_chance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.35</span><span class="p">,</span>
+        <span class="n">max_blur</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+        <span class="n">camera_distance</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">),</span>
+        <span class="n">camera_height</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">camera_tilt_angle</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">45</span><span class="p">),</span>
+        <span class="n">textures_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stable_pose_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+        <span class="n">surface_textures</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Рендерит одно изображение объекта с фоном и с прозрачным фоном.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        glb_path (Path): Путь к файлу .glb</span>
+<span class="sd">        output_dir (Path): Директория для сохранения изображения с фоном</span>
+<span class="sd">        transparent_dir (Path): Директория для сохранения изображения с прозрачным фоном</span>
+<span class="sd">        idx (int): Номер изображения</span>
+<span class="sd">        img_size (Tuple[int, int]): Размер выходного изображения</span>
+<span class="sd">        class_id (int): ID класса объекта</span>
+<span class="sd">        prepared_mesh: Предварительно загруженный меш (опционально)</span>
+<span class="sd">        light_power (Tuple[float, float]): Диапазон мощности света</span>
+<span class="sd">        light_color_range (Tuple[float, float]): Диапазон цвета света</span>
+<span class="sd">        surf_bright (Tuple[float, float]): Диапазон яркости поверхности</span>
+<span class="sd">        obj_bright (Tuple[float, float]): Диапазон яркости объекта</span>
+<span class="sd">        dirt_chance (float): Вероятность добавления загрязнений</span>
+<span class="sd">        max_blur (float): Максимальное размытие</span>
+<span class="sd">        camera_distance (Tuple[float, float]): Диапазон расстояния камеры</span>
+<span class="sd">        camera_height (Tuple[float, float]): Диапазон высоты камеры</span>
+<span class="sd">        camera_tilt_angle (Tuple[float, float]): Диапазон угла наклона камеры</span>
+<span class="sd">        textures_dir (Path): Директория с текстурами</span>
+<span class="sd">        stable_pose_samples (int): Количество сэмплов для устойчивых положений</span>
+<span class="sd">        surface_textures (list): Список текстур поверхности</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        bool: True если рендер успешен, False в противном случае</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># ------------------- 1. Загружаем и подготавливаем меш -------------------</span>
+        <span class="k">if</span> <span class="n">prepared_mesh</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tm_mesh</span> <span class="o">=</span> <span class="n">load_and_prepare_mesh</span><span class="p">(</span><span class="n">glb_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tm_mesh</span> <span class="o">=</span> <span class="n">prepared_mesh</span>
+
+        <span class="c1"># Получаем устойчивое положение (с использованием кэша)</span>
+        <span class="n">cache_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">glb_path</span><span class="p">)</span>
+        <span class="n">roll</span><span class="p">,</span> <span class="n">pitch</span><span class="p">,</span> <span class="n">yaw</span> <span class="o">=</span> <span class="n">get_random_stable_rotation</span><span class="p">(</span><span class="n">tm_mesh</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">stable_pose_samples</span><span class="p">)</span>
+
+        <span class="c1"># ------------------- 2. Случайные параметры рендеринга -------------------</span>
+        <span class="n">light_power_val</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">light_power</span><span class="p">)</span>
+        <span class="n">light_color_val</span> <span class="o">=</span> <span class="n">random_color</span><span class="p">(</span><span class="n">light_color_range</span><span class="p">)</span>
+        <span class="n">surf_tex_path</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">surface_textures</span><span class="p">)</span>
+        <span class="n">obj_bright_val</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">obj_bright</span><span class="p">)</span>
+        <span class="n">camera_distance_val</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">camera_distance</span><span class="p">)</span>
+        <span class="n">tilt_angle</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">camera_tilt_angle</span><span class="p">)</span>
+        <span class="n">tilt_angle_rad</span> <span class="o">=</span> <span class="n">math</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">tilt_angle</span><span class="p">)</span>
+
+        <span class="c1"># Расчет позиции камеры с учетом наклона</span>
+        <span class="n">horizontal_distance</span> <span class="o">=</span> <span class="n">camera_distance_val</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">tilt_angle_rad</span><span class="p">)</span>
+        <span class="n">camera_height_val</span> <span class="o">=</span> <span class="n">camera_distance_val</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">tilt_angle_rad</span><span class="p">)</span>
+
+        <span class="n">camera_pos</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">camera_height_val</span><span class="p">,</span> <span class="n">horizontal_distance</span><span class="p">)</span>
+        <span class="n">focal_point</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># ------------------- 3. Конвертируем trimesh в pyvista для рендеринга -------------------</span>
+        <span class="n">faces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tm_mesh</span><span class="o">.</span><span class="n">faces</span><span class="p">),</span> <span class="mi">3</span><span class="p">),</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">faces</span><span class="p">))</span>
+        <span class="n">mesh</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">PolyData</span><span class="p">(</span><span class="n">tm_mesh</span><span class="o">.</span><span class="n">vertices</span><span class="p">,</span> <span class="n">faces</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tm_mesh</span><span class="o">.</span><span class="n">visual</span><span class="p">,</span> <span class="s1">&#39;uv&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">visual</span><span class="o">.</span><span class="n">uv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mesh</span><span class="o">.</span><span class="n">active_texture_coordinates</span> <span class="o">=</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">visual</span><span class="o">.</span><span class="n">uv</span>
+
+        <span class="c1"># ------------------- Обработка текстуры через trimesh -------------------</span>
+        <span class="n">has_texture</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tm_mesh</span><span class="o">.</span><span class="n">visual</span><span class="p">,</span> <span class="s1">&#39;material&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">visual</span><span class="o">.</span><span class="n">material</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">texture_image</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">has_texture</span><span class="p">:</span>
+            <span class="n">material</span> <span class="o">=</span> <span class="n">tm_mesh</span><span class="o">.</span><span class="n">visual</span><span class="o">.</span><span class="n">material</span>
+            <span class="c1"># Пытаемся извлечь текстуру из различных атрибутов материала</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="s1">&#39;image&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">material</span><span class="o">.</span><span class="n">image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">image</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="s1">&#39;baseColorTexture&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">material</span><span class="o">.</span><span class="n">baseColorTexture</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">baseColorTexture</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="s1">&#39;mainColorTexture&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">material</span><span class="o">.</span><span class="n">mainColorTexture</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">mainColorTexture</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="s1">&#39;diffuseTexture&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">material</span><span class="o">.</span><span class="n">diffuseTexture</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">diffuseTexture</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">material</span><span class="p">,</span> <span class="s1">&#39;texture&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">material</span><span class="o">.</span><span class="n">texture</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">texture</span>
+
+        <span class="c1"># Если текстура не найдена, создаем белую текстуру</span>
+        <span class="k">if</span> <span class="n">texture_image</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">texture_image</span><span class="p">,</span> <span class="p">(</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)):</span>
+            <span class="n">texture_image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s1">&#39;RGB&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">texture_image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">texture_image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>  <span class="c1"># Градации серого</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">texture_image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">texture_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>  <span class="c1"># RGBA</span>
+                <span class="n">texture_image</span> <span class="o">=</span> <span class="n">texture_image</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>  <span class="c1"># Убираем альфа-канал</span>
+            <span class="n">texture_image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">texture_image</span><span class="p">)</span>
+
+        <span class="c1"># ------------------- 4. Создаём сцену для рендера с фоном -------------------</span>
+        <span class="n">plotter</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">Plotter</span><span class="p">(</span><span class="n">off_screen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">window_size</span><span class="o">=</span><span class="n">img_size</span><span class="p">)</span>
+
+        <span class="c1"># --- поверхность (стол) ---</span>
+        <span class="n">surf_tex</span> <span class="o">=</span> <span class="n">load_surface_texture</span><span class="p">(</span><span class="n">textures_dir</span><span class="p">,</span> <span class="n">surf_tex_path</span><span class="p">)</span>
+        <span class="n">surf_tex</span> <span class="o">=</span> <span class="n">augment_surface</span><span class="p">(</span><span class="n">surf_tex</span><span class="p">,</span> <span class="n">surf_bright</span><span class="p">)</span>
+        <span class="n">surface</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">Plane</span><span class="p">(</span><span class="n">center</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">direction</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">i_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">j_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">surface</span><span class="p">,</span> <span class="n">texture</span><span class="o">=</span><span class="n">pv</span><span class="o">.</span><span class="n">numpy_to_texture</span><span class="p">(</span><span class="n">surf_tex</span><span class="p">),</span> <span class="n">smooth_shading</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># --- сам объект ---</span>
+        <span class="n">pil_img</span> <span class="o">=</span> <span class="n">texture_image</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">pil_img</span> <span class="o">=</span> <span class="n">ImageEnhance</span><span class="o">.</span><span class="n">Brightness</span><span class="p">(</span><span class="n">pil_img</span><span class="p">)</span><span class="o">.</span><span class="n">enhance</span><span class="p">(</span><span class="n">obj_bright_val</span><span class="p">)</span>  <span class="c1"># Коррекция яркости</span>
+        <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">dirt_chance</span><span class="p">:</span>
+            <span class="n">pil_img</span> <span class="o">=</span> <span class="n">add_dirt</span><span class="p">(</span><span class="n">pil_img</span><span class="p">)</span>  <span class="c1"># Добавляем загрязнения</span>
+        <span class="n">pil_img</span> <span class="o">=</span> <span class="n">pil_img</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s1">&#39;RGB&#39;</span><span class="p">)</span>
+        <span class="n">obj_tex</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">Texture</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pil_img</span><span class="p">))</span>
+
+        <span class="c1"># --- поворот объекта в устойчивое положение ---</span>
+        <span class="n">mesh</span><span class="o">.</span><span class="n">rotate_x</span><span class="p">(</span><span class="n">roll</span><span class="p">,</span> <span class="n">point</span><span class="o">=</span><span class="n">mesh</span><span class="o">.</span><span class="n">center</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mesh</span><span class="o">.</span><span class="n">rotate_y</span><span class="p">(</span><span class="n">pitch</span><span class="p">,</span> <span class="n">point</span><span class="o">=</span><span class="n">mesh</span><span class="o">.</span><span class="n">center</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">mesh</span><span class="o">.</span><span class="n">rotate_z</span><span class="p">(</span><span class="n">yaw</span><span class="p">,</span> <span class="n">point</span><span class="o">=</span><span class="n">mesh</span><span class="o">.</span><span class="n">center</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Выравниваем объект по столу</span>
+        <span class="n">bounds</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">bounds</span>
+        <span class="n">min_z</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+        <span class="n">translation_z</span> <span class="o">=</span> <span class="o">-</span><span class="n">min_z</span>
+        <span class="n">mesh</span><span class="o">.</span><span class="n">translate</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">translation_z</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># ------------------- 5. ДОБАВЛЯЕМ ТЕНИ -------------------</span>
+        <span class="c1"># Создаем тень путем проекции меша на поверхность стола</span>
+        <span class="n">shadow_mesh</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">shadow_vertices</span> <span class="o">=</span> <span class="n">shadow_mesh</span><span class="o">.</span><span class="n">points</span>
+
+        <span class="c1"># Позиция источника света (случайная, но выше объекта)</span>
+        <span class="n">light_pos</span> <span class="o">=</span> <span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># Рассчитываем направление света</span>
+        <span class="n">light_dir</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">light_pos</span><span class="p">)</span> <span class="o">-</span> <span class="n">mesh</span><span class="o">.</span><span class="n">center</span>
+        <span class="n">light_dir_norm</span> <span class="o">=</span> <span class="n">light_dir</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">light_dir</span><span class="p">)</span>
+
+        <span class="c1"># Проецируем вершины на плоскость стола вдоль направления света</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">shadow_vertices</span><span class="p">)):</span>
+            <span class="n">vertex</span> <span class="o">=</span> <span class="n">shadow_vertices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="c1"># Параметр проекции: находим t такое, что z + t*light_dir_z = 0</span>
+            <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">light_dir_norm</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mf">1e-5</span><span class="p">:</span>  <span class="c1"># Избегаем деления на ноль</span>
+                <span class="n">t</span> <span class="o">=</span> <span class="o">-</span><span class="n">vertex</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">/</span> <span class="n">light_dir_norm</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">shadow_vertices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">vertex</span> <span class="o">+</span> <span class="n">t</span> <span class="o">*</span> <span class="n">light_dir_norm</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Если свет горизонтальный, просто проецируем на плоскость z=0</span>
+                <span class="n">shadow_vertices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">vertex</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vertex</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">shadow_mesh</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="n">shadow_vertices</span>
+
+        <span class="c1"># Сглаживаем тень для более естественного вида</span>
+        <span class="n">shadow_mesh</span> <span class="o">=</span> <span class="n">shadow_mesh</span><span class="o">.</span><span class="n">smooth</span><span class="p">(</span><span class="n">n_iter</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># Добавляем тень на сцену (полупрозрачная черная поверхность)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">shadow_mesh</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">lighting</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="c1"># Добавляем основной объект поверх тени</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">texture</span><span class="o">=</span><span class="n">obj_tex</span><span class="p">,</span> <span class="n">smooth_shading</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># --- свет ---</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">set_background</span><span class="p">(</span><span class="s2">&quot;black&quot;</span><span class="p">)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">add_light</span><span class="p">(</span>
+            <span class="n">pv</span><span class="o">.</span><span class="n">Light</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="n">light_pos</span><span class="p">,</span>
+                     <span class="n">focal_point</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                     <span class="n">color</span><span class="o">=</span><span class="n">light_color_val</span><span class="p">,</span>
+                     <span class="n">intensity</span><span class="o">=</span><span class="n">light_power_val</span><span class="p">,</span>
+                     <span class="n">positional</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># ------------------- 6. НАСТРОЙКА КАМЕРЫ -------------------</span>
+        <span class="c1"># Устанавливаем камеру над объектом с учетом наклона</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">camera_position</span> <span class="o">=</span> <span class="p">[</span><span class="n">camera_pos</span><span class="p">,</span> <span class="n">focal_point</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span>
+
+        <span class="c1"># Вычисляем и устанавливаем угол обзора</span>
+        <span class="n">view_angle</span> <span class="o">=</span> <span class="n">calculate_view_angle</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">camera_distance_val</span><span class="p">)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">view_angle</span> <span class="o">=</span> <span class="n">view_angle</span>
+
+        <span class="c1"># Сбрасываем диапазон отсечения</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">reset_camera_clipping_range</span><span class="p">()</span>
+
+        <span class="c1"># ------------------- 7. Рендер с фоном -------------------</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">plotter</span><span class="o">.</span><span class="n">screenshot</span><span class="p">(</span><span class="n">transparent_background</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="c1"># ------------------- 8. Пост-обработка рендера с фоном -------------------</span>
+        <span class="n">pil_img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">max_blur</span><span class="p">:</span>
+            <span class="n">pil_img</span> <span class="o">=</span> <span class="n">pil_img</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ImageFilter</span><span class="o">.</span><span class="n">GaussianBlur</span><span class="p">(</span><span class="n">radius</span><span class="o">=</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">*</span> <span class="n">max_blur</span><span class="p">))</span>
+
+        <span class="c1"># ------------------- 9. Сохраняем рендер с фоном -------------------</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;item_</span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">04d</span><span class="si">}</span><span class="s2">.png&quot;</span>
+        <span class="n">pil_img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+
+        <span class="c1"># ------------------- 10. Рендер с прозрачным фоном -------------------</span>
+        <span class="n">plotter_transparent</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">Plotter</span><span class="p">(</span><span class="n">off_screen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">window_size</span><span class="o">=</span><span class="n">img_size</span><span class="p">)</span>
+
+        <span class="c1"># Добавляем только объект (без стола и тени)</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="n">texture</span><span class="o">=</span><span class="n">obj_tex</span><span class="p">,</span> <span class="n">smooth_shading</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Добавляем свет</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">add_light</span><span class="p">(</span>
+            <span class="n">pv</span><span class="o">.</span><span class="n">Light</span><span class="p">(</span><span class="n">position</span><span class="o">=</span><span class="n">light_pos</span><span class="p">,</span>
+                     <span class="n">focal_point</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                     <span class="n">color</span><span class="o">=</span><span class="n">light_color_val</span><span class="p">,</span>
+                     <span class="n">intensity</span><span class="o">=</span><span class="n">light_power_val</span><span class="p">,</span>
+                     <span class="n">positional</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Устанавливаем прозрачный фон</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">set_background</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># Настраиваем камеру так же, как и для основного рендера</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">camera_position</span> <span class="o">=</span> <span class="p">[</span><span class="n">camera_pos</span><span class="p">,</span> <span class="n">focal_point</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">camera</span><span class="o">.</span><span class="n">view_angle</span> <span class="o">=</span> <span class="n">view_angle</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">reset_camera_clipping_range</span><span class="p">()</span>
+
+        <span class="c1"># Рендерим с прозрачным фоном</span>
+        <span class="n">img_transparent</span> <span class="o">=</span> <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">screenshot</span><span class="p">(</span><span class="n">transparent_background</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">plotter_transparent</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="c1"># Сохраняем рендер с прозрачным фоном</span>
+        <span class="n">fname_transparent</span> <span class="o">=</span> <span class="n">transparent_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;item_</span><span class="si">{</span><span class="n">idx</span><span class="si">:</span><span class="s2">04d</span><span class="si">}</span><span class="s2">.png&quot;</span>
+        <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img_transparent</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">fname_transparent</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка в render_one для </span><span class="si">{</span><span class="n">glb_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, изображение </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
+        <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="generate_dataset_from_3D">
+<a class="viewcode-back" href="../modules.html#generate_dataset_from_3D.generate_dataset_from_3D">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_dataset_from_3D</span><span class="p">(</span>
+        <span class="n">glb_folder</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">output_root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">classes_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">img_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1280</span><span class="p">,</span> <span class="mi">1280</span><span class="p">),</span>
+        <span class="n">photos_per_item</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">light_power</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">1.4</span><span class="p">),</span>
+        <span class="n">light_color_range</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">surf_bright</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span>
+        <span class="n">obj_bright</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">1.3</span><span class="p">),</span>
+        <span class="n">dirt_chance</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.35</span><span class="p">,</span>
+        <span class="n">max_blur</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+        <span class="n">camera_distance</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">),</span>
+        <span class="n">camera_height</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+        <span class="n">camera_tilt_angle</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">45</span><span class="p">),</span>
+        <span class="n">textures_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stable_pose_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Генерирует датасет из 3D моделей инструментов.</span>
+<span class="sd">    </span>
+<span class="sd">    Создает фотореалистичные изображения инструментов с различных ракурсов</span>
+<span class="sd">    с реалистичным освещением, текстурами и фонами.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        glb_folder (str): Папка с .glb файлами 3D моделей</span>
+<span class="sd">        output_root (str): Корневая папка для сохранения результатов</span>
+<span class="sd">        classes_file (str): Файл с описанием классов</span>
+<span class="sd">        img_size (Tuple[int, int]): Размер генерируемых изображений (ширина, высота)</span>
+<span class="sd">        photos_per_item (int): Количество рендеров на одну модель</span>
+<span class="sd">        light_power (Tuple[float, float]): Диапазон мощности света</span>
+<span class="sd">        light_color_range (Tuple[float, float]): Диапазон цвета света</span>
+<span class="sd">        surf_bright (Tuple[float, float]): Диапазон яркости поверхности стола</span>
+<span class="sd">        obj_bright (Tuple[float, float]): Диапазон яркости объекта</span>
+<span class="sd">        dirt_chance (float): Вероятность добавления загрязнений на текстуру</span>
+<span class="sd">        max_blur (float): Максимальное размытие для постобработки</span>
+<span class="sd">        camera_distance (Tuple[float, float]): Диапазон расстояния камеры до объекта</span>
+<span class="sd">        camera_height (Tuple[float, float]): Диапазон высоты камеры</span>
+<span class="sd">        camera_tilt_angle (Tuple[float, float]): Диапазон угла наклона камеры</span>
+<span class="sd">        textures_dir (str): Папка с текстурами для фона</span>
+<span class="sd">        stable_pose_samples (int): Количество samples для поиска устойчивых положений</span>
+<span class="sd">        </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; generate_dataset_from_3D(</span>
+<span class="sd">        ...     &quot;models/&quot;, &quot;output/&quot;, &quot;classes.txt&quot;,</span>
+<span class="sd">        ...     img_size=(640, 640), photos_per_item=20</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Инициализация путей</span>
+    <span class="n">glb_folder_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">glb_folder</span><span class="p">)</span>
+    <span class="n">output_root_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_root</span><span class="p">)</span>
+
+    <span class="c1"># Исправляем путь для transparent - создаем рядом с output_root</span>
+    <span class="n">transparent_root</span> <span class="o">=</span> <span class="n">output_root_path</span> <span class="o">/</span> <span class="s2">&quot;transparent&quot;</span>
+    <span class="n">output_root_path</span> <span class="o">=</span> <span class="n">output_root_path</span> <span class="o">/</span> <span class="s2">&quot;images&quot;</span>
+
+    <span class="k">if</span> <span class="n">textures_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">textures_dir_path</span> <span class="o">=</span> <span class="n">output_root_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;textures&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">textures_dir_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">textures_dir</span><span class="p">)</span>
+
+    <span class="c1"># Загружаем классы</span>
+    <span class="n">class_dict</span> <span class="o">=</span> <span class="n">load_classes</span><span class="p">(</span><span class="n">classes_file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">class_dict</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка: не удалось загрузить классы из </span><span class="si">{</span><span class="n">classes_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Создаем выходные директории</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_root_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">transparent_root</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Сканируем текстуры для фона</span>
+    <span class="n">surface_textures</span> <span class="o">=</span> <span class="n">_scan_textures</span><span class="p">(</span><span class="n">textures_dir_path</span><span class="p">)</span>
+
+    <span class="c1"># Находим все .glb файлы</span>
+    <span class="n">glb_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">glb_folder_path</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*.glb&quot;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">glb_files</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Нет ни одного .glb в указанной папке&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Проверяем версию PyVista</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">plotter</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">Plotter</span><span class="p">(</span><span class="n">off_screen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">window_size</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">))</span>
+        <span class="n">plotter</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка при создании Plotter: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Попробуйте обновить PyVista: pip install --upgrade pyvista&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="c1"># Обрабатываем каждую 3D модель</span>
+    <span class="k">for</span> <span class="n">glb_path</span> <span class="ow">in</span> <span class="n">glb_files</span><span class="p">:</span>
+        <span class="n">item_name</span> <span class="o">=</span> <span class="n">glb_path</span><span class="o">.</span><span class="n">stem</span>
+        <span class="c1"># Получаем ID класса для текущего файла</span>
+        <span class="n">class_id</span> <span class="o">=</span> <span class="n">get_class_id</span><span class="p">(</span><span class="n">glb_path</span><span class="p">,</span> <span class="n">class_dict</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">class_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Предупреждение: класс для </span><span class="si">{</span><span class="n">item_name</span><span class="si">}</span><span class="s2"> не найден, пропускаем&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="n">out_dir</span> <span class="o">=</span> <span class="n">output_root_path</span> <span class="o">/</span> <span class="n">item_name</span>
+        <span class="n">transparent_dir</span> <span class="o">=</span> <span class="n">transparent_root</span> <span class="o">/</span> <span class="n">item_name</span>
+        <span class="n">out_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">transparent_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Обработка </span><span class="si">{</span><span class="n">item_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Предварительно загружаем и подготавливаем меш</span>
+        <span class="n">prepared_mesh</span> <span class="o">=</span> <span class="n">load_and_prepare_mesh</span><span class="p">(</span><span class="n">glb_path</span><span class="p">)</span>
+
+        <span class="c1"># Предварительно вычисляем устойчивые положения</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Вычисление устойчивых положений...&quot;</span><span class="p">)</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">cache_key</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">glb_path</span><span class="p">)</span>
+        <span class="c1"># Вызываем функцию для вычисления и кэширования устойчивых положений</span>
+        <span class="n">get_random_stable_rotation</span><span class="p">(</span><span class="n">prepared_mesh</span><span class="p">,</span> <span class="n">cache_key</span><span class="p">,</span> <span class="n">stable_pose_samples</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Найденно </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">STABLE_POSES_CACHE</span><span class="p">[</span><span class="n">cache_key</span><span class="p">])</span><span class="si">}</span><span class="s2"> устойчивых положений за </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start_time</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> сек&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Подготавливаем аргументы для многопоточного выполнения</span>
+        <span class="n">args_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">photos_per_item</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">glb_path</span><span class="p">,</span>
+                <span class="n">out_dir</span><span class="p">,</span>
+                <span class="n">transparent_dir</span><span class="p">,</span>
+                <span class="n">i</span><span class="p">,</span>
+                <span class="n">img_size</span><span class="p">,</span>
+                <span class="n">class_id</span><span class="p">,</span>
+                <span class="n">prepared_mesh</span><span class="p">,</span>
+                <span class="n">light_power</span><span class="p">,</span>
+                <span class="n">light_color_range</span><span class="p">,</span>
+                <span class="n">surf_bright</span><span class="p">,</span>
+                <span class="n">obj_bright</span><span class="p">,</span>
+                <span class="n">dirt_chance</span><span class="p">,</span>
+                <span class="n">max_blur</span><span class="p">,</span>
+                <span class="n">camera_distance</span><span class="p">,</span>
+                <span class="n">camera_height</span><span class="p">,</span>
+                <span class="n">camera_tilt_angle</span><span class="p">,</span>
+                <span class="n">textures_dir_path</span><span class="p">,</span>
+                <span class="n">stable_pose_samples</span><span class="p">,</span>
+                <span class="n">surface_textures</span>
+            <span class="p">)</span>
+            <span class="n">args_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+        <span class="c1"># Определяем количество потоков (по числу ядер процессора)</span>
+        <span class="n">num_threads</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+
+        <span class="c1"># Многопоточный рендеринг с progress bar</span>
+        <span class="n">successful_renders</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">with</span> <span class="n">concurrent</span><span class="o">.</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">num_threads</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="c1"># Используем tqdm для отображения прогресса</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">tqdm</span><span class="p">(</span>
+                <span class="n">executor</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">render_one_wrapper</span><span class="p">,</span> <span class="n">args_list</span><span class="p">),</span>
+                <span class="n">total</span><span class="o">=</span><span class="n">photos_per_item</span><span class="p">,</span>
+                <span class="n">desc</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;  Рендеринг </span><span class="si">{</span><span class="n">item_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">ncols</span><span class="o">=</span><span class="mi">80</span>
+            <span class="p">))</span>
+            <span class="n">successful_renders</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">if</span> <span class="n">r</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Готово. Успешных рендеров: </span><span class="si">{</span><span class="n">successful_renders</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">photos_per_item</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># Пример использования при прямом запуске файла</span>
+    <span class="n">generate_dataset_from_3D</span><span class="p">(</span>
+        <span class="n">glb_folder</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;R:\tools\dataset\3Dmodels&quot;</span><span class="p">,</span>
+        <span class="n">output_root</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;R:\tools\dataset\renders&quot;</span><span class="p">,</span>
+        <span class="n">classes_file</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;R:\tools\dataset\classes.txt&quot;</span>
+    <span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Авторские права 2024, Your Name. </p>
+  </div>
+
+  Собрано при помощи <a href="https://www.sphinx-doc.org/">Sphinx</a> с использованием
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">темы,</a>
+    предоставленной <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,559 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="ru" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Модули проекта &mdash; документация Dataset Generator 1.0</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=9ca2116e"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/translations.js?v=cd1d70c9"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Алфавитный указатель" href="genindex.html" />
+    <link rel="search" title="Поиск" href="search.html" />
+    <link rel="prev" title="Документация проекта Dataset Generator" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Dataset Generator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Поиск в документации" aria-label="Поиск в документации" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Меню навигации">
+              <p class="caption" role="heading"><span class="caption-text">Модули проекта:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Модули проекта</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-create_marking">create_marking</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#create_marking.create_marking"><code class="docutils literal notranslate"><span class="pre">create_marking()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-create_dataset">create_dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-generate_dataset_from_3D">generate_dataset_from_3D</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.stable_pose_matrices"><code class="docutils literal notranslate"><span class="pre">stable_pose_matrices()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.mat_to_euler_sxyz"><code class="docutils literal notranslate"><span class="pre">mat_to_euler_sxyz()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.get_stable_rotations"><code class="docutils literal notranslate"><span class="pre">get_stable_rotations()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.get_random_stable_rotation"><code class="docutils literal notranslate"><span class="pre">get_random_stable_rotation()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.load_classes"><code class="docutils literal notranslate"><span class="pre">load_classes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.get_class_id"><code class="docutils literal notranslate"><span class="pre">get_class_id()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.random_color"><code class="docutils literal notranslate"><span class="pre">random_color()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.load_surface_texture"><code class="docutils literal notranslate"><span class="pre">load_surface_texture()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.augment_surface"><code class="docutils literal notranslate"><span class="pre">augment_surface()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.add_dirt"><code class="docutils literal notranslate"><span class="pre">add_dirt()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.calculate_view_angle"><code class="docutils literal notranslate"><span class="pre">calculate_view_angle()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.load_and_prepare_mesh"><code class="docutils literal notranslate"><span class="pre">load_and_prepare_mesh()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.render_one_wrapper"><code class="docutils literal notranslate"><span class="pre">render_one_wrapper()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.render_one"><code class="docutils literal notranslate"><span class="pre">render_one()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generate_dataset_from_3D.generate_dataset_from_3D"><code class="docutils literal notranslate"><span class="pre">generate_dataset_from_3D()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-remove_background">remove_background</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#remove_background.remove_background"><code class="docutils literal notranslate"><span class="pre">remove_background()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#module-generate_combination_dataset">generate_combination_dataset</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#generate_combination_dataset.generate_combination_dataset"><code class="docutils literal notranslate"><span class="pre">generate_combination_dataset()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Меню навигации для мобильных устройств" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Dataset Generator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Навигация по страницам">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Модули проекта</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/modules.rst.txt" rel="nofollow"> Просмотреть исходный код страницы</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="id1">
+<h1>Модули проекта<a class="headerlink" href="#id1" title="Ссылка на этот заголовок"></a></h1>
+<section id="module-create_marking">
+<span id="create-marking"></span><h2>create_marking<a class="headerlink" href="#module-create_marking" title="Ссылка на этот заголовок"></a></h2>
+<p>Модуль для автоматической разметки изображений с прозрачным фоном.</p>
+<p>Содержит функции для создания разметки следующих типов:
+- bbox (ограничивающие прямоугольники)
+- obb (ориентированные ограничивающие прямоугольники)
+- mask (маски сегментации)</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="create_marking.create_marking">
+<span class="sig-prename descclassname"><span class="pre">create_marking.</span></span><span class="sig-name descname"><span class="pre">create_marking</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes_txt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mark_types</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_proc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/create_marking.html#create_marking"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#create_marking.create_marking" title="Ссылка на это определение"></a></dt>
+<dd><p>Основная функция для создания разметки датасета.</p>
+<p>Создает разметку указанных типов для всех изображений в исходной директории.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_dir</strong> (<em>str</em>) – Путь к исходной директории с изображениями</p></li>
+<li><p><strong>classes_txt</strong> (<em>str</em>) – Путь к файлу с описанием классов</p></li>
+<li><p><strong>mark_types</strong> (<em>Union</em><em>[</em><em>MarkType</em><em>, </em><em>List</em><em>[</em><em>MarkType</em><em>]</em><em>]</em>) – Типы разметки для создания</p></li>
+<li><p><strong>num_proc</strong> (<em>int</em><em> | </em><em>None</em>) – Количество процессов для параллельной обработки</p></li>
+</ul>
+</dd>
+<dt class="field-even">Тип результата<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+<p class="rubric">Пример</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">create_marking</span><span class="p">(</span><span class="s2">&quot;dataset/images&quot;</span><span class="p">,</span> <span class="s2">&quot;classes.txt&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-create_dataset">
+<span id="create-dataset"></span><h2>create_dataset<a class="headerlink" href="#module-create_dataset" title="Ссылка на этот заголовок"></a></h2>
+<p>Основной скрипт для создания полного датасета.</p>
+<p>Объединяет все этапы подготовки данных:
+1. Автоматическое удаление фона с оригинальных изображений
+2. Разметка исходного датасета по полученным изображениям без фона
+3. Генерация синтетического датасета из реальных изображений
+4. Генерация изображений по 3D моделям инструмента
+5. Создание синтетического  датасета из отрендеренных изображений</p>
+</section>
+<section id="module-generate_dataset_from_3D">
+<span id="generate-dataset-from-3d"></span><h2>generate_dataset_from_3D<a class="headerlink" href="#module-generate_dataset_from_3D" title="Ссылка на этот заголовок"></a></h2>
+<p>Модуль для генерации фотореалистичного датасета из 3D моделей.</p>
+<p>Создает изображения инструментов с различных ракурсов с реалистичным освещением,
+текстурами и фонами. Генерирует как изображения с фоном, так и с прозрачным фоном.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.stable_pose_matrices">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">stable_pose_matrices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">150</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">area_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stability_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.9</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#stable_pose_matrices"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.stable_pose_matrices" title="Ссылка на это определение"></a></dt>
+<dd><p>Находит устойчивые положения объекта на поверхности.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mesh</strong> – 3D меш объекта</p></li>
+<li><p><strong>n_samples</strong> – Количество сэмплов для анализа</p></li>
+<li><p><strong>area_ratio</strong> – Минимальное отношение площади контакта к максимальной</p></li>
+<li><p><strong>stability_ratio</strong> – Максимальное отношение высоты к радиусу гирации</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Список матриц трансформации для устойчивых положений</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.mat_to_euler_sxyz">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">mat_to_euler_sxyz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#mat_to_euler_sxyz"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.mat_to_euler_sxyz" title="Ссылка на это определение"></a></dt>
+<dd><p>Конвертирует матрицу вращения в углы Эйлера.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.get_stable_rotations">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">get_stable_rotations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">filter_kw</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#get_stable_rotations"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.get_stable_rotations" title="Ссылка на это определение"></a></dt>
+<dd><p>Получает устойчивые вращения объекта.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mesh</strong> – 3D меш объекта</p></li>
+<li><p><strong>n_samples</strong> – Количество сэмплов</p></li>
+<li><p><strong>**filter_kw</strong> – Дополнительные параметры фильтрации</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Список углов Эйлера для устойчивых положений</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.get_random_stable_rotation">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">get_random_stable_rotation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">filter_kw</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#get_random_stable_rotation"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.get_random_stable_rotation" title="Ссылка на это определение"></a></dt>
+<dd><p>Выбирает случайное устойчивое вращение из кэша или вычисляет новые.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mesh</strong> – 3D меш объекта</p></li>
+<li><p><strong>cache_key</strong> – Ключ для кэширования результатов</p></li>
+<li><p><strong>n_samples</strong> – Количество сэмплов</p></li>
+<li><p><strong>**filter_kw</strong> – Дополнительные параметры фильтрации</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Углы Эйлера (roll, pitch, yaw)</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.load_classes">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">load_classes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">class_file_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#load_classes"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.load_classes" title="Ссылка на это определение"></a></dt>
+<dd><p>Загружает словарь классов из файла.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>class_file_path</strong> (<em>str</em>) – Путь к файлу с классами</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Словарь {имя_класса: id_класса}</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[str, int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.get_class_id">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">get_class_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#get_class_id"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.get_class_id" title="Ссылка на это определение"></a></dt>
+<dd><p>Определяет ID класса по имени файла 3D модели.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<em>Path</em>) – Путь к файлу 3D модели</p></li>
+<li><p><strong>class_dict</strong> (<em>Dict</em><em>[</em><em>str</em><em>, </em><em>int</em><em>]</em>) – Словарь классов</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>ID класса или None если не найден</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[int]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.random_color">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">random_color</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">light_color_range</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#random_color"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.random_color" title="Ссылка на это определение"></a></dt>
+<dd><p>Генерирует случайный цвет в заданном диапазоне яркости.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">float</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.load_surface_texture">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">load_surface_texture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">textures_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#load_surface_texture"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.load_surface_texture" title="Ссылка на это определение"></a></dt>
+<dd><p>Загружает текстуру поверхности (стола).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>textures_dir</strong> (<em>Path</em>) – Базовая директория с текстурами</p></li>
+<li><p><strong>path</strong> (<em>Path</em><em> | </em><em>None</em>) – Путь к текстуре или None для серого фона</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Изображение текстуры 512×512 RGB</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.augment_surface">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">augment_surface</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf_bright</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#augment_surface"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.augment_surface" title="Ссылка на это определение"></a></dt>
+<dd><p>Аугментирует текстуру поверхности изменением яркости и добавлением шума.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>arr</strong> (<em>np.ndarray</em>) – Исходное изображение текстуры</p></li>
+<li><p><strong>surf_bright</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон изменения яркости</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Аугментированное изображение</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.add_dirt">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">add_dirt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#add_dirt"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.add_dirt" title="Ссылка на это определение"></a></dt>
+<dd><p>Добавляет пятна загрязнений на текстуру объекта.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>img</strong> (<em>Image.Image</em>) – Исходное изображение текстуры</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Текстура с добавленными загрязнениями</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Image.Image</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.calculate_view_angle">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">calculate_view_angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#calculate_view_angle"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.calculate_view_angle" title="Ссылка на это определение"></a></dt>
+<dd><p>Вычисляет угол обзора камеры для полного охвата объекта.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mesh</strong> – 3D меш объекта</p></li>
+<li><p><strong>distance</strong> – Расстояние от камеры до объекта</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Угол обзора в градусах</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.load_and_prepare_mesh">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">load_and_prepare_mesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">glb_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#load_and_prepare_mesh"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.load_and_prepare_mesh" title="Ссылка на это определение"></a></dt>
+<dd><p>Загружает и подготавливает 3D меш для рендеринга.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>glb_path</strong> – Путь к файлу .glb</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Подготовленный меш</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Trimesh</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.render_one_wrapper">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">render_one_wrapper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#render_one_wrapper"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.render_one_wrapper" title="Ссылка на это определение"></a></dt>
+<dd><p>Обертка для функции render_one для многопоточности.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> – Кортеж аргументов для render_one</p>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>Результат выполнения render_one или None при ошибке</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.render_one">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">render_one</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">glb_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transparent_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">idx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prepared_mesh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">light_power</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.4,</span> <span class="pre">1.4)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">light_color_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.8,</span> <span class="pre">1.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf_bright</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.3,</span> <span class="pre">1.1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj_bright</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.6,</span> <span class="pre">1.3)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dirt_chance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.35</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_blur</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_distance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.3,</span> <span class="pre">1.5)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.3,</span> <span class="pre">1.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_tilt_angle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0,</span> <span class="pre">45)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">textures_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stable_pose_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surface_textures</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#render_one"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.render_one" title="Ссылка на это определение"></a></dt>
+<dd><p>Рендерит одно изображение объекта с фоном и с прозрачным фоном.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>glb_path</strong> (<em>Path</em>) – Путь к файлу .glb</p></li>
+<li><p><strong>output_dir</strong> (<em>Path</em>) – Директория для сохранения изображения с фоном</p></li>
+<li><p><strong>transparent_dir</strong> (<em>Path</em>) – Директория для сохранения изображения с прозрачным фоном</p></li>
+<li><p><strong>idx</strong> (<em>int</em>) – Номер изображения</p></li>
+<li><p><strong>img_size</strong> (<em>Tuple</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em>) – Размер выходного изображения</p></li>
+<li><p><strong>class_id</strong> (<em>int</em>) – ID класса объекта</p></li>
+<li><p><strong>prepared_mesh</strong> – Предварительно загруженный меш (опционально)</p></li>
+<li><p><strong>light_power</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон мощности света</p></li>
+<li><p><strong>light_color_range</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон цвета света</p></li>
+<li><p><strong>surf_bright</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон яркости поверхности</p></li>
+<li><p><strong>obj_bright</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон яркости объекта</p></li>
+<li><p><strong>dirt_chance</strong> (<em>float</em>) – Вероятность добавления загрязнений</p></li>
+<li><p><strong>max_blur</strong> (<em>float</em>) – Максимальное размытие</p></li>
+<li><p><strong>camera_distance</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон расстояния камеры</p></li>
+<li><p><strong>camera_height</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон высоты камеры</p></li>
+<li><p><strong>camera_tilt_angle</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон угла наклона камеры</p></li>
+<li><p><strong>textures_dir</strong> (<em>Path</em>) – Директория с текстурами</p></li>
+<li><p><strong>stable_pose_samples</strong> (<em>int</em>) – Количество сэмплов для устойчивых положений</p></li>
+<li><p><strong>surface_textures</strong> (<em>list</em>) – Список текстур поверхности</p></li>
+</ul>
+</dd>
+<dt class="field-even">Результат<span class="colon">:</span></dt>
+<dd class="field-even"><p>True если рендер успешен, False в противном случае</p>
+</dd>
+<dt class="field-odd">Тип результата<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_dataset_from_3D.generate_dataset_from_3D">
+<span class="sig-prename descclassname"><span class="pre">generate_dataset_from_3D.</span></span><span class="sig-name descname"><span class="pre">generate_dataset_from_3D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">glb_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_root</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1280,</span> <span class="pre">1280)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">photos_per_item</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">light_power</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.4,</span> <span class="pre">1.4)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">light_color_range</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.8,</span> <span class="pre">1.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surf_bright</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.3,</span> <span class="pre">1.1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">obj_bright</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.6,</span> <span class="pre">1.3)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dirt_chance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.35</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_blur</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_distance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.3,</span> <span class="pre">1.5)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.3,</span> <span class="pre">1.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">camera_tilt_angle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0,</span> <span class="pre">45)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">textures_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stable_pose_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">30</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_dataset_from_3D.html#generate_dataset_from_3D"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_dataset_from_3D.generate_dataset_from_3D" title="Ссылка на это определение"></a></dt>
+<dd><p>Генерирует датасет из 3D моделей инструментов.</p>
+<p>Создает фотореалистичные изображения инструментов с различных ракурсов
+с реалистичным освещением, текстурами и фонами.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>glb_folder</strong> (<em>str</em>) – Папка с .glb файлами 3D моделей</p></li>
+<li><p><strong>output_root</strong> (<em>str</em>) – Корневая папка для сохранения результатов</p></li>
+<li><p><strong>classes_file</strong> (<em>str</em>) – Файл с описанием классов</p></li>
+<li><p><strong>img_size</strong> (<em>Tuple</em><em>[</em><em>int</em><em>, </em><em>int</em><em>]</em>) – Размер генерируемых изображений (ширина, высота)</p></li>
+<li><p><strong>photos_per_item</strong> (<em>int</em>) – Количество рендеров на одну модель</p></li>
+<li><p><strong>light_power</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон мощности света</p></li>
+<li><p><strong>light_color_range</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон цвета света</p></li>
+<li><p><strong>surf_bright</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон яркости поверхности стола</p></li>
+<li><p><strong>obj_bright</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон яркости объекта</p></li>
+<li><p><strong>dirt_chance</strong> (<em>float</em>) – Вероятность добавления загрязнений на текстуру</p></li>
+<li><p><strong>max_blur</strong> (<em>float</em>) – Максимальное размытие для постобработки</p></li>
+<li><p><strong>camera_distance</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон расстояния камеры до объекта</p></li>
+<li><p><strong>camera_height</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон высоты камеры</p></li>
+<li><p><strong>camera_tilt_angle</strong> (<em>Tuple</em><em>[</em><em>float</em><em>, </em><em>float</em><em>]</em>) – Диапазон угла наклона камеры</p></li>
+<li><p><strong>textures_dir</strong> (<em>str</em>) – Папка с текстурами для фона</p></li>
+<li><p><strong>stable_pose_samples</strong> (<em>int</em>) – Количество samples для поиска устойчивых положений</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Пример</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">generate_dataset_from_3D</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="s2">&quot;models/&quot;</span><span class="p">,</span> <span class="s2">&quot;output/&quot;</span><span class="p">,</span> <span class="s2">&quot;classes.txt&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">img_size</span><span class="o">=</span><span class="p">(</span><span class="mi">640</span><span class="p">,</span> <span class="mi">640</span><span class="p">),</span> <span class="n">photos_per_item</span><span class="o">=</span><span class="mi">20</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-remove_background">
+<span id="remove-background"></span><h2>remove_background<a class="headerlink" href="#module-remove_background" title="Ссылка на этот заголовок"></a></h2>
+<p>Модуль для автоматического удаления фона с изображений.</p>
+<p>Использует библиотеку rembg для удаления фона с изображений инструментов
+и сохранения их с прозрачным фоном в формате PNG.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="remove_background.remove_background">
+<span class="sig-prename descclassname"><span class="pre">remove_background.</span></span><span class="sig-name descname"><span class="pre">remove_background</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_proc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/remove_background.html#remove_background"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#remove_background.remove_background" title="Ссылка на это определение"></a></dt>
+<dd><p>Удаляет фон со всех изображений в исходной директории.</p>
+<p>Обрабатывает все изображения в поддиректориях source_dir и сохраняет
+результаты с прозрачным фоном в target_dir, сохраняя структуру папок.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_dir</strong> (<em>str</em>) – Путь к исходной директории с изображениями</p></li>
+<li><p><strong>target_dir</strong> (<em>str</em>) – Путь к целевой директории для сохранения результатов</p></li>
+<li><p><strong>num_proc</strong> (<em>int</em><em> | </em><em>None</em>) – Количество процессов для параллельной обработки</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Пример</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">remove_background</span><span class="p">(</span><span class="s2">&quot;input/images&quot;</span><span class="p">,</span> <span class="s2">&quot;output/transparent&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="module-generate_combination_dataset">
+<span id="generate-combination-dataset"></span><h2>generate_combination_dataset<a class="headerlink" href="#module-generate_combination_dataset" title="Ссылка на этот заголовок"></a></h2>
+<p>Модуль для генерации комбинированного синтетического датасета.</p>
+<p>Создает сложные сцены с множеством объектов на текстурированном фоне
+с автоматической разметкой для обучения детекторов и сегментационных моделей.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="generate_combination_dataset.generate_combination_dataset">
+<span class="sig-prename descclassname"><span class="pre">generate_combination_dataset.</span></span><span class="sig-name descname"><span class="pre">generate_combination_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">textures_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classes_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">need_bbox</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">need_obb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">need_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1280,</span> <span class="pre">1280)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_objects</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_scale</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_variation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.9,</span> <span class="pre">1.1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_threads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">avoid_intersections</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_intersection_area</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/generate_combination_dataset.html#generate_combination_dataset"><span class="viewcode-link"><span class="pre">[исходный</span> <span class="pre">код]</span></span></a><a class="headerlink" href="#generate_combination_dataset.generate_combination_dataset" title="Ссылка на это определение"></a></dt>
+<dd><p>Генерирует комбинированный датасет с объектами на текстурированном фоне.</p>
+<p>Создает синтетические изображения с несколькими объектами на одном изображении
+с автоматической генерацией разметки для детекции и сегментации.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Параметры<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset_path</strong> (<em>str</em>) – Путь к папке с исходными изображениями объектов (с прозрачным фоном)</p></li>
+<li><p><strong>textures_path</strong> (<em>str</em>) – Путь к папке с текстурами для фона</p></li>
+<li><p><strong>output_path</strong> (<em>str</em>) – Путь для сохранения сгенерированных изображений и разметки</p></li>
+<li><p><strong>classes_file</strong> (<em>str</em>) – Путь к файлу с описанием классов</p></li>
+<li><p><strong>need_bbox</strong> (<em>bool</em>) – Создавать разметку bounding boxes в формате YOLO</p></li>
+<li><p><strong>need_obb</strong> (<em>bool</em>) – Создавать разметку oriented bounding boxes</p></li>
+<li><p><strong>need_mask</strong> (<em>bool</em>) – Создавать маски семантической сегментации</p></li>
+<li><p><strong>image_size</strong> (<em>tuple</em>) – Размер генерируемых изображений (ширина, высота)</p></li>
+<li><p><strong>num_objects</strong> (<em>int</em>) – Количество объектов на одном изображении</p></li>
+<li><p><strong>num_images</strong> (<em>int</em>) – Количество генерируемых изображений</p></li>
+<li><p><strong>base_scale</strong> (<em>float</em>) – Базовый масштаб для перевода реальных размеров в пиксели</p></li>
+<li><p><strong>scale_variation</strong> (<em>tuple</em>) – Диапазон случайного изменения масштаба (min, max)</p></li>
+<li><p><strong>num_threads</strong> (<em>int</em>) – Количество потоков для многопоточной генерации</p></li>
+<li><p><strong>avoid_intersections</strong> (<em>bool</em>) – Избегать ли пересечения объектов</p></li>
+<li><p><strong>max_intersection_area</strong> (<em>float</em>) – Максимальная допустимая площадь пересечения (0.0-1.0)</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Пример</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">generate_combination_dataset</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="s2">&quot;dataset/transparent&quot;</span><span class="p">,</span> <span class="s2">&quot;textures/&quot;</span><span class="p">,</span> <span class="s2">&quot;synthetic/&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="s2">&quot;classes.txt&quot;</span><span class="p">,</span> <span class="n">num_objects</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">num_images</span><span class="o">=</span><span class="mi">1000</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Нижняя область">
+        <a href="index.html" class="btn btn-neutral float-left" title="Документация проекта Dataset Generator" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Предыдущая</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Авторские права 2024, Your Name. </p>
+  </div>
+
+  Собрано при помощи <a href="https://www.sphinx-doc.org/">Sphinx</a> с использованием
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">темы,</a>
+    предоставленной <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

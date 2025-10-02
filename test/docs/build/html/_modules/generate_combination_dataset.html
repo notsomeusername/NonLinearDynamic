@@ -1,0 +1,801 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="ru" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>generate_combination_dataset &mdash; документация Dataset Generator 1.0</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=9ca2116e"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/translations.js?v=cd1d70c9"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Алфавитный указатель" href="../genindex.html" />
+    <link rel="search" title="Поиск" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Dataset Generator
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Поиск в документации" aria-label="Поиск в документации" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Меню навигации">
+              <p class="caption" role="heading"><span class="caption-text">Модули проекта:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Модули проекта</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Меню навигации для мобильных устройств" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Dataset Generator</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Навигация по страницам">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Код модуля</a></li>
+      <li class="breadcrumb-item active">generate_combination_dataset</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Исходный код generate_combination_dataset</h1><div class="highlight"><pre>
+<span></span><span class="c1"># generate_combination_dataset.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Модуль для генерации комбинированного синтетического датасета.</span>
+
+<span class="sd">Создает сложные сцены с множеством объектов на текстурированном фоне</span>
+<span class="sd">с автоматической разметкой для обучения детекторов и сегментационных моделей.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">cv2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">glob</span><span class="w"> </span><span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">Counter</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">as_completed</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+
+<div class="viewcode-block" id="generate_combination_dataset">
+<a class="viewcode-back" href="../modules.html#generate_combination_dataset.generate_combination_dataset">[документация]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_combination_dataset</span><span class="p">(</span>
+        <span class="n">dataset_path</span><span class="p">,</span>
+        <span class="n">textures_path</span><span class="p">,</span>
+        <span class="n">output_path</span><span class="p">,</span>
+        <span class="n">classes_file</span><span class="p">,</span>
+        <span class="n">need_bbox</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">need_obb</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">need_mask</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">image_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1280</span><span class="p">,</span> <span class="mi">1280</span><span class="p">),</span>
+        <span class="n">num_objects</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+        <span class="n">num_images</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+        <span class="n">base_scale</span><span class="o">=</span><span class="mf">2.5</span><span class="p">,</span>
+        <span class="n">scale_variation</span><span class="o">=</span><span class="p">(</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">),</span>
+        <span class="n">num_threads</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">avoid_intersections</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">max_intersection_area</span><span class="o">=</span><span class="mf">0.0</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Генерирует комбинированный датасет с объектами на текстурированном фоне.</span>
+<span class="sd">    </span>
+<span class="sd">    Создает синтетические изображения с несколькими объектами на одном изображении</span>
+<span class="sd">    с автоматической генерацией разметки для детекции и сегментации.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        dataset_path (str): Путь к папке с исходными изображениями объектов (с прозрачным фоном)</span>
+<span class="sd">        textures_path (str): Путь к папке с текстурами для фона</span>
+<span class="sd">        output_path (str): Путь для сохранения сгенерированных изображений и разметки</span>
+<span class="sd">        classes_file (str): Путь к файлу с описанием классов</span>
+<span class="sd">        need_bbox (bool): Создавать разметку bounding boxes в формате YOLO</span>
+<span class="sd">        need_obb (bool): Создавать разметку oriented bounding boxes</span>
+<span class="sd">        need_mask (bool): Создавать маски семантической сегментации</span>
+<span class="sd">        image_size (tuple): Размер генерируемых изображений (ширина, высота)</span>
+<span class="sd">        num_objects (int): Количество объектов на одном изображении</span>
+<span class="sd">        num_images (int): Количество генерируемых изображений</span>
+<span class="sd">        base_scale (float): Базовый масштаб для перевода реальных размеров в пиксели</span>
+<span class="sd">        scale_variation (tuple): Диапазон случайного изменения масштаба (min, max)</span>
+<span class="sd">        num_threads (int): Количество потоков для многопоточной генерации</span>
+<span class="sd">        avoid_intersections (bool): Избегать ли пересечения объектов</span>
+<span class="sd">        max_intersection_area (float): Максимальная допустимая площадь пересечения (0.0-1.0)</span>
+<span class="sd">        </span>
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; generate_combination_dataset(</span>
+<span class="sd">        ...     &quot;dataset/transparent&quot;, &quot;textures/&quot;, &quot;synthetic/&quot;,</span>
+<span class="sd">        ...     &quot;classes.txt&quot;, num_objects=5, num_images=1000</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num_threads</span> <span class="o">=</span> <span class="n">num_threads</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span>
+
+    <span class="c1"># Создаем выходные директории</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">output_image_path</span> <span class="o">=</span> <span class="n">output_path</span> <span class="o">+</span> <span class="s2">&quot;images</span><span class="se">\\</span><span class="s2">&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_image_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">output_bbox_path</span> <span class="o">=</span> <span class="n">output_path</span> <span class="o">+</span> <span class="s2">&quot;bbox</span><span class="se">\\</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">need_bbox</span> <span class="ow">and</span> <span class="n">output_bbox_path</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_bbox_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">output_obb_path</span> <span class="o">=</span> <span class="n">output_path</span> <span class="o">+</span> <span class="s2">&quot;obb</span><span class="se">\\</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">need_obb</span> <span class="ow">and</span> <span class="n">output_obb_path</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">output_obb_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">mask_folder</span> <span class="o">=</span> <span class="n">output_path</span> <span class="o">+</span> <span class="s2">&quot;masks</span><span class="se">\\</span><span class="s2">&quot;</span>
+    <span class="k">if</span> <span class="n">need_mask</span> <span class="ow">and</span> <span class="n">mask_folder</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">mask_folder</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Загружаем классы с реальными размерами инструментов</span>
+    <span class="n">class_names</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">class_lengths</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">classes_file</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">():</span>
+            <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">class_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">class_name</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">class_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>  <span class="c1"># Длина инструмента в мм</span>
+                <span class="n">class_names</span><span class="p">[</span><span class="n">class_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_id</span>
+                <span class="n">class_lengths</span><span class="p">[</span><span class="n">class_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_length</span>
+
+    <span class="c1"># Собираем список изображений по классам</span>
+    <span class="n">images_by_class</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">folder_name</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">):</span>
+        <span class="n">folder_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span> <span class="n">folder_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">folder_path</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">folder_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">):</span>
+            <span class="c1"># Проверяем, есть ли папка в списке классов</span>
+            <span class="k">if</span> <span class="n">folder_name</span> <span class="ow">in</span> <span class="n">class_names</span><span class="p">:</span>
+                <span class="n">class_id</span> <span class="o">=</span> <span class="n">class_names</span><span class="p">[</span><span class="n">folder_name</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;png&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;bmp&#39;</span><span class="p">]:</span>
+                    <span class="n">pattern</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;*.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">img_path</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">img_path</span><span class="p">):</span>
+                            <span class="n">images_by_class</span><span class="p">[</span><span class="n">class_id</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">img_path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Предупреждение: не найден класс для папки &#39;</span><span class="si">{</span><span class="n">folder_name</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># БАЛАНСИРОВКА: находим максимальное количество изображений среди всех классов</span>
+    <span class="c1">#max_images_per_class = max(images_by_class.values(), key=len) if images_by_class else 0</span>
+    <span class="n">max_images_per_class</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">img_list</span><span class="p">)</span> <span class="k">for</span> <span class="n">img_list</span> <span class="ow">in</span> <span class="n">images_by_class</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">if</span> <span class="n">images_by_class</span> <span class="k">else</span> <span class="mi">0</span>
+
+    <span class="c1"># Размножаем изображения в классах с малым количеством изображений</span>
+    <span class="n">balanced_images_by_class</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">class_id</span><span class="p">,</span> <span class="n">images</span> <span class="ow">in</span> <span class="n">images_by_class</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">max_images_per_class</span><span class="p">:</span>
+            <span class="c1"># Размножаем изображения до достижения максимального количества</span>
+            <span class="n">multiplier</span> <span class="o">=</span> <span class="n">max_images_per_class</span> <span class="o">//</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">multiplied_images</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">multiplier</span><span class="p">):</span>
+                <span class="c1"># Перемешиваем и добавляем изображения</span>
+                <span class="n">shuffled_images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">shuffled_images</span><span class="p">)</span>
+                <span class="n">multiplied_images</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">shuffled_images</span><span class="p">)</span>
+
+            <span class="c1"># Обрезаем до нужного количества</span>
+            <span class="n">balanced_images_by_class</span><span class="p">[</span><span class="n">class_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">multiplied_images</span><span class="p">[:</span><span class="n">max_images_per_class</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Если в классе достаточно изображений, используем все</span>
+            <span class="n">balanced_images_by_class</span><span class="p">[</span><span class="n">class_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">images</span>
+
+    <span class="c1"># Создаем общий список всех изображений с учетом балансировки</span>
+    <span class="n">balanced_images_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">class_id</span><span class="p">,</span> <span class="n">images</span> <span class="ow">in</span> <span class="n">balanced_images_by_class</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">balanced_images_list</span><span class="o">.</span><span class="n">extend</span><span class="p">([(</span><span class="n">class_id</span><span class="p">,</span> <span class="n">img_path</span><span class="p">)</span> <span class="k">for</span> <span class="n">img_path</span> <span class="ow">in</span> <span class="n">images</span><span class="p">])</span>
+
+    <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">balanced_images_list</span><span class="p">)</span>
+
+    <span class="c1"># Загружаем текстуры для фона</span>
+    <span class="n">textures</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;png&#39;</span><span class="p">,</span> <span class="s1">&#39;bmp&#39;</span><span class="p">]:</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">textures_path</span><span class="p">,</span> <span class="s1">&#39;**&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;*.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">textures</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+    <span class="c1"># Вспомогательные функции для обработки изображений</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_image_with_pil</span><span class="p">(</span><span class="n">img_path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Загрузка изображения с помощью PIL с поддержкой прозрачности.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">pil_image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">img_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pil_image</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;RGBA&#39;</span><span class="p">:</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pil_image</span><span class="p">)</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGBA2BGRA</span><span class="p">)</span>  <span class="c1"># Конвертация в BGR для OpenCV</span>
+            <span class="k">elif</span> <span class="n">pil_image</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;RGB&#39;</span><span class="p">:</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pil_image</span><span class="p">)</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2BGR</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pil_image</span> <span class="o">=</span> <span class="n">pil_image</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s1">&#39;RGB&#39;</span><span class="p">)</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pil_image</span><span class="p">)</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2BGR</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">image</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка загрузки изображения </span><span class="si">{</span><span class="n">img_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">rotate_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">angle</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Поворот изображения с сохранением прозрачности.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">image</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">image</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">image</span>
+
+        <span class="n">is_mask</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_mask</span><span class="p">:</span>
+            <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="n">w</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">h</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">rotation_matrix</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">getRotationMatrix2D</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="n">angle</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+
+        <span class="c1"># Вычисляем новые размеры изображения после поворота</span>
+        <span class="n">cos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">rotation_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">sin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">rotation_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">new_w</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">h</span> <span class="o">*</span> <span class="n">sin</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">cos</span><span class="p">))</span>
+        <span class="n">new_h</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">h</span> <span class="o">*</span> <span class="n">cos</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">sin</span><span class="p">))</span>
+
+        <span class="n">rotation_matrix</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">new_w</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">rotation_matrix</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span><span class="n">new_h</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_mask</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>  <span class="c1"># RGBA изображение</span>
+                <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span>
+                    <span class="n">image</span><span class="p">,</span> <span class="n">rotation_matrix</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span>
+                    <span class="n">flags</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">,</span>
+                    <span class="n">borderMode</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span><span class="p">,</span>
+                    <span class="n">borderValue</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># Прозрачный фон</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span>
+                    <span class="n">image</span><span class="p">,</span> <span class="n">rotation_matrix</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span>
+                    <span class="n">flags</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># Маска</span>
+            <span class="k">return</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span>
+                <span class="n">image</span><span class="p">,</span> <span class="n">rotation_matrix</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span>
+                <span class="n">flags</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span><span class="p">,</span>  <span class="c1"># Для масок используем NEAREST интерполяцию</span>
+                <span class="n">borderMode</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span><span class="p">,</span>
+                <span class="n">borderValue</span><span class="o">=</span><span class="mi">0</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_rotated_bbox</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Вычисление повернутого ограничивающего прямоугольника для маски.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">mask</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">contours</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">findContours</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">RETR_EXTERNAL</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CHAIN_APPROX_SIMPLE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">contours</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">max_contour</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">contours</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">contourArea</span><span class="p">)</span>
+        <span class="n">epsilon</span> <span class="o">=</span> <span class="mf">0.02</span> <span class="o">*</span> <span class="n">cv2</span><span class="o">.</span><span class="n">arcLength</span><span class="p">(</span><span class="n">max_contour</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">approx_contour</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">approxPolyDP</span><span class="p">(</span><span class="n">max_contour</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>  <span class="c1"># Аппроксимация контура</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">approx_contour</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">approx_contour</span> <span class="o">=</span> <span class="n">max_contour</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">approx_contour</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">:</span>
+            <span class="n">rotated_rect</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">minAreaRect</span><span class="p">(</span><span class="n">approx_contour</span><span class="p">)</span>  <span class="c1"># Минимальный ограничивающий прямоугольник</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">boundingRect</span><span class="p">(</span><span class="n">approx_contour</span><span class="p">)</span>
+            <span class="n">rotated_rect</span> <span class="o">=</span> <span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="n">w</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">y</span> <span class="o">+</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">2</span><span class="p">),</span> <span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">h</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">box_points</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">boxPoints</span><span class="p">(</span><span class="n">rotated_rect</span><span class="p">)</span>
+        <span class="n">box_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">(</span><span class="n">box_points</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">box_points</span><span class="p">,</span> <span class="n">rotated_rect</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_object_length</span><span class="p">(</span><span class="n">rotated_rect</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Вычисление длины объекта в пикселях.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">rotated_rect</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="n">width</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="n">rotated_rect</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>  <span class="c1"># Берем максимальный размер как длину</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_scale_factor</span><span class="p">(</span><span class="n">class_id</span><span class="p">,</span> <span class="n">object_length_px</span><span class="p">,</span> <span class="n">base_scale</span><span class="p">,</span> <span class="n">scale_variation</span><span class="p">,</span> <span class="n">max_image_dimension</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Вычисление коэффициента масштабирования на основе реальных размеров.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">class_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">class_lengths</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Предупреждение: для класса </span><span class="si">{</span><span class="n">class_id</span><span class="si">}</span><span class="s2"> не указана длина&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">scale_variation</span><span class="p">)</span>
+
+        <span class="n">real_length_mm</span> <span class="o">=</span> <span class="n">class_lengths</span><span class="p">[</span><span class="n">class_id</span><span class="p">]</span>
+        <span class="n">desired_length_px</span> <span class="o">=</span> <span class="n">real_length_mm</span> <span class="o">*</span> <span class="n">base_scale</span>  <span class="c1"># Желаемый размер в пикселях</span>
+        <span class="n">current_length_px</span> <span class="o">=</span> <span class="n">object_length_px</span>
+
+        <span class="c1"># Базовый коэффициент масштабирования</span>
+        <span class="n">scale_factor</span> <span class="o">=</span> <span class="n">desired_length_px</span> <span class="o">/</span> <span class="n">current_length_px</span> <span class="k">if</span> <span class="n">current_length_px</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">1.0</span>
+
+        <span class="c1"># Добавляем случайное изменение</span>
+        <span class="n">scale_factor</span> <span class="o">*=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">*</span><span class="n">scale_variation</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">scale_factor</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">process_image</span><span class="p">(</span><span class="n">img_path</span><span class="p">,</span> <span class="n">class_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Загрузка и предварительная обработка изображения объекта.&quot;&quot;&quot;</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">load_image_with_pil</span><span class="p">(</span><span class="n">img_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">img</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span>
+
+        <span class="c1"># Конвертация в RGBA если необходимо</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2BGRA</span><span class="p">)</span>
+            <span class="n">img</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span>  <span class="c1"># Полностью непрозрачный</span>
+        <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_GRAY2BGRA</span><span class="p">)</span>
+            <span class="n">img</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">255</span>
+
+        <span class="c1"># Случайный поворот объекта</span>
+        <span class="n">angle</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">360</span><span class="p">)</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">rotate_image</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">angle</span><span class="p">)</span>
+
+        <span class="c1"># Создание маски из альфа-канала</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">img</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">3</span><span class="p">]</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="mi">127</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">THRESH_BINARY</span><span class="p">)</span>
+
+        <span class="c1"># Морфологические операции для очистки маски</span>
+        <span class="n">kernel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">morphologyEx</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">MORPH_OPEN</span><span class="p">,</span> <span class="n">kernel</span><span class="p">)</span>   <span class="c1"># Удаление шума</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">morphologyEx</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">MORPH_CLOSE</span><span class="p">,</span> <span class="n">kernel</span><span class="p">)</span>  <span class="c1"># Заполнение отверстий</span>
+
+        <span class="c1"># Обрезка по bounding box объекта</span>
+        <span class="n">contours</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">findContours</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">RETR_EXTERNAL</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">CHAIN_APPROX_SIMPLE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">contours</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Не найдено контуров в изображении </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">img_path</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">0</span>
+
+        <span class="n">max_contour</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">contours</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">contourArea</span><span class="p">)</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">boundingRect</span><span class="p">(</span><span class="n">max_contour</span><span class="p">)</span>
+
+        <span class="n">obj</span> <span class="o">=</span> <span class="n">img</span><span class="p">[</span><span class="n">y</span><span class="p">:</span><span class="n">y</span> <span class="o">+</span> <span class="n">h</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span><span class="n">x</span> <span class="o">+</span> <span class="n">w</span><span class="p">]</span>
+        <span class="n">mask_cropped</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">y</span><span class="p">:</span><span class="n">y</span> <span class="o">+</span> <span class="n">h</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span><span class="n">x</span> <span class="o">+</span> <span class="n">w</span><span class="p">]</span>
+
+        <span class="n">rotated_bbox_info</span> <span class="o">=</span> <span class="n">calculate_rotated_bbox</span><span class="p">(</span><span class="n">mask_cropped</span><span class="p">)</span>
+        <span class="n">object_length_px</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">rotated_bbox_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">object_length_px</span> <span class="o">=</span> <span class="n">calculate_object_length</span><span class="p">(</span><span class="n">rotated_bbox_info</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">obj</span><span class="p">,</span> <span class="n">mask_cropped</span><span class="p">,</span> <span class="n">rotated_bbox_info</span><span class="p">,</span> <span class="n">object_length_px</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_scale_to_bbox</span><span class="p">(</span><span class="n">bbox_info</span><span class="p">,</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Применение масштабирования к OBB&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">bbox_info</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="n">box_points</span><span class="p">,</span> <span class="n">rotated_rect</span> <span class="o">=</span> <span class="n">bbox_info</span>
+        <span class="n">scaled_box_points</span> <span class="o">=</span> <span class="n">box_points</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span><span class="p">])</span>
+
+        <span class="n">center</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">angle</span> <span class="o">=</span> <span class="n">rotated_rect</span>
+        <span class="n">scaled_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">center</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">center</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale_y</span><span class="p">)</span>
+        <span class="n">scaled_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale_y</span><span class="p">)</span>
+        <span class="n">scaled_rotated_rect</span> <span class="o">=</span> <span class="p">(</span><span class="n">scaled_center</span><span class="p">,</span> <span class="n">scaled_size</span><span class="p">,</span> <span class="n">angle</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">scaled_box_points</span><span class="p">,</span> <span class="n">scaled_rotated_rect</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">normalize_points</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">img_width</span><span class="p">,</span> <span class="n">img_height</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Нормализация точек БЕЗ ограничения границами&quot;&quot;&quot;</span>
+        <span class="n">normalized</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">points</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">point</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">point</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c1"># Сохраняем исходные координаты, даже если они выходят за границы</span>
+            <span class="n">normalized</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">x</span> <span class="o">/</span> <span class="n">img_width</span><span class="p">,</span> <span class="n">y</span> <span class="o">/</span> <span class="n">img_height</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">normalized</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_intersection</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span><span class="p">,</span> <span class="n">max_intersection_area</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Проверка пересечения объекта с уже размещенными объектами с учетом максимальной площади пересечения&quot;&quot;&quot;</span>
+        <span class="n">obj_h</span><span class="p">,</span> <span class="n">obj_w</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">bg_h</span><span class="p">,</span> <span class="n">bg_w</span> <span class="o">=</span> <span class="n">bbox_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Проверяем, что объект полностью помещается в изображение</span>
+        <span class="k">if</span> <span class="n">placement_x</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">placement_y</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span> <span class="o">&gt;</span> <span class="n">bg_w</span> <span class="ow">or</span> <span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span> <span class="o">&gt;</span> <span class="n">bg_h</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>  <span class="c1"># Объект выходит за границы - считаем это пересечением</span>
+
+        <span class="c1"># Вырезаем область, куда планируем разместить объект</span>
+        <span class="n">target_region</span> <span class="o">=</span> <span class="n">bbox_mask</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span>
+
+        <span class="c1"># Проверяем пересечение масок</span>
+        <span class="n">intersection</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">bitwise_and</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">target_region</span><span class="p">)</span>
+        <span class="n">intersection_pixels</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">countNonZero</span><span class="p">(</span><span class="n">intersection</span><span class="p">)</span>
+
+        <span class="c1"># Если нет пересечения - все OK</span>
+        <span class="k">if</span> <span class="n">intersection_pixels</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Вычисляем площадь объекта</span>
+        <span class="n">object_pixels</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">countNonZero</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+
+        <span class="c1"># Вычисляем долю пересечения</span>
+        <span class="n">intersection_ratio</span> <span class="o">=</span> <span class="n">intersection_pixels</span> <span class="o">/</span> <span class="n">object_pixels</span>
+
+        <span class="c1"># Проверяем, превышает ли пересечение максимально допустимую площадь</span>
+        <span class="k">return</span> <span class="n">intersection_ratio</span> <span class="o">&gt;</span> <span class="n">max_intersection_area</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">place_object</span><span class="p">(</span><span class="n">background</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span><span class="p">,</span> <span class="n">mask_image</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">class_id</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Размещение объекта на изображении - объект должен быть полностью внутри&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">mask_image</span>
+
+        <span class="n">obj_h</span><span class="p">,</span> <span class="n">obj_w</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">bg_h</span><span class="p">,</span> <span class="n">bg_w</span> <span class="o">=</span> <span class="n">background</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># Проверяем, что объект полностью помещается в изображение</span>
+        <span class="k">if</span> <span class="n">placement_x</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">placement_y</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span> <span class="o">&gt;</span> <span class="n">bg_w</span> <span class="ow">or</span> <span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span> <span class="o">&gt;</span> <span class="n">bg_h</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">mask_image</span>
+
+        <span class="c1"># Если включен режим избегания пересечений, проверяем пересечение</span>
+        <span class="k">if</span> <span class="n">avoid_intersections</span> <span class="ow">and</span> <span class="n">check_intersection</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span><span class="p">,</span> <span class="n">max_intersection_area</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">mask_image</span>
+
+        <span class="c1"># Наложение объекта с учетом прозрачности</span>
+        <span class="k">if</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">alpha</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">/</span> <span class="mf">255.0</span>
+            <span class="n">obj_rgb</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">3</span><span class="p">]</span>
+            <span class="n">bg_region</span> <span class="o">=</span> <span class="n">background</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">bg_region</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="n">obj_rgb</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">]:</span>
+                <span class="n">blended</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="n">bg_region</span> <span class="o">+</span> <span class="n">alpha</span> <span class="o">*</span> <span class="n">obj_rgb</span>
+                <span class="n">background</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span> <span class="o">=</span> <span class="n">blended</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">background</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span>
+
+        <span class="c1"># Обновляем маску для проверки пересечений</span>
+        <span class="n">temp_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">bg_h</span><span class="p">,</span> <span class="n">bg_w</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">temp_mask</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="n">bbox_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">bbox_mask</span><span class="p">,</span> <span class="n">temp_mask</span><span class="p">)</span>
+
+        <span class="c1"># Обновляем маску сегментации если нужно</span>
+        <span class="k">if</span> <span class="n">need_mask</span> <span class="ow">and</span> <span class="n">mask_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">class_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Создаем маску объекта с яркостью = class_id + 1</span>
+            <span class="n">obj_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">obj_h</span><span class="p">,</span> <span class="n">obj_w</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+            <span class="n">obj_mask</span><span class="p">[</span><span class="n">mask</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_id</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># Яркость = номер класса + 1</span>
+
+            <span class="c1"># Накладываем маску объекта на общую маску</span>
+            <span class="n">mask_region</span> <span class="o">=</span> <span class="n">mask_image</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span>
+            <span class="c1"># Заменяем область, где есть объект</span>
+            <span class="n">mask_region</span><span class="p">[</span><span class="n">obj_mask</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj_mask</span><span class="p">[</span><span class="n">obj_mask</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">mask_image</span><span class="p">[</span><span class="n">placement_y</span><span class="p">:</span><span class="n">placement_y</span> <span class="o">+</span> <span class="n">obj_h</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">:</span><span class="n">placement_x</span> <span class="o">+</span> <span class="n">obj_w</span><span class="p">]</span> <span class="o">=</span> <span class="n">mask_region</span>
+
+        <span class="n">bbox</span> <span class="o">=</span> <span class="p">(</span><span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span><span class="p">,</span> <span class="n">obj_w</span><span class="p">,</span> <span class="n">obj_h</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">bbox</span><span class="p">,</span> <span class="p">(</span><span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span><span class="p">),</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">mask_image</span>
+
+    <span class="c1"># Глобальные счетчики и блокировки для многопоточности</span>
+    <span class="n">image_usage_counter</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">max_usage_per_image</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">usage_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="n">class_distribution</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">()</span>
+    <span class="n">distribution_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="n">intersection_stats</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">intersection_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_balanced_image</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Получение сбалансированного изображения с учетом ограничений использования&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">usage_lock</span><span class="p">:</span>
+            <span class="c1"># Фильтруем изображения, которые использовались меньше максимального количества раз</span>
+            <span class="n">available_images</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">class_id</span><span class="p">,</span> <span class="n">img_path</span> <span class="ow">in</span> <span class="n">balanced_images_list</span><span class="p">:</span>
+                <span class="n">usage_count</span> <span class="o">=</span> <span class="n">image_usage_counter</span><span class="p">[</span><span class="n">img_path</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">usage_count</span> <span class="o">&lt;</span> <span class="n">max_usage_per_image</span><span class="p">:</span>
+                    <span class="n">available_images</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">class_id</span><span class="p">,</span> <span class="n">img_path</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">available_images</span><span class="p">:</span>
+                <span class="c1"># Если все изображения использовались максимальное количество раз, сбрасываем счетчики</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Сброс счетчиков использования изображений&quot;</span><span class="p">)</span>
+                <span class="n">image_usage_counter</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                <span class="n">available_images</span> <span class="o">=</span> <span class="n">balanced_images_list</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">available_images</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_single_image</span><span class="p">(</span><span class="n">img_idx</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Генерация одного изображения - функция для многопоточной обработки&quot;&quot;&quot;</span>
+        <span class="c1"># Создаем основное изображение и маску</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="n">bbox_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="c1"># Создаем изображение маски если нужно</span>
+        <span class="n">mask_image</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">need_mask</span><span class="p">:</span>
+            <span class="n">mask_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="c1"># Добавляем текстуру фона</span>
+        <span class="k">if</span> <span class="n">textures</span><span class="p">:</span>
+            <span class="n">texture_path</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">textures</span><span class="p">)</span>
+            <span class="n">texture</span> <span class="o">=</span> <span class="n">load_image_with_pil</span><span class="p">(</span><span class="n">texture_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">texture</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">texture</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                    <span class="n">texture</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">texture</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGRA2BGR</span><span class="p">)</span>
+                <span class="n">texture</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">texture</span><span class="p">,</span> <span class="n">image_size</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">texture</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="p">(</span><span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="p">(</span><span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="n">yolo_annotations</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">yolo_obb_annotations</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="n">attempts</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">max_attempts</span> <span class="o">=</span> <span class="n">num_objects</span> <span class="o">*</span> <span class="mi">50</span> <span class="k">if</span> <span class="n">avoid_intersections</span> <span class="k">else</span> <span class="n">num_objects</span> <span class="o">*</span> <span class="mi">10</span>
+        <span class="n">placed_objects</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">intersection_attempts</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">while</span> <span class="n">placed_objects</span> <span class="o">&lt;</span> <span class="n">num_objects</span> <span class="ow">and</span> <span class="n">attempts</span> <span class="o">&lt;</span> <span class="n">max_attempts</span><span class="p">:</span>
+            <span class="n">attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Выбираем сбалансированное изображение</span>
+            <span class="n">class_id</span><span class="p">,</span> <span class="n">img_path</span> <span class="o">=</span> <span class="n">get_balanced_image</span><span class="p">()</span>
+            <span class="k">with</span> <span class="n">usage_lock</span><span class="p">:</span>
+                <span class="n">image_usage_counter</span><span class="p">[</span><span class="n">img_path</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="n">obj</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">rotated_bbox_info</span><span class="p">,</span> <span class="n">object_length_px</span> <span class="o">=</span> <span class="n">process_image</span><span class="p">(</span><span class="n">img_path</span><span class="p">,</span> <span class="n">class_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Вычисляем масштаб с ограничением по размеру изображения</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">calculate_scale_factor</span><span class="p">(</span><span class="n">class_id</span><span class="p">,</span> <span class="n">object_length_px</span><span class="p">,</span> <span class="n">base_scale</span><span class="p">,</span> <span class="n">scale_variation</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="n">image_size</span><span class="p">))</span>
+            <span class="n">new_w</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale</span><span class="p">))</span>
+            <span class="n">new_h</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">scale</span><span class="p">))</span>
+
+            <span class="c1"># Проверяем, что объект не слишком большой для изображения</span>
+            <span class="k">if</span> <span class="n">new_w</span> <span class="o">&gt;</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> <span class="n">new_h</span> <span class="o">&gt;</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                <span class="k">continue</span>
+
+            <span class="n">scale_x</span> <span class="o">=</span> <span class="n">new_w</span> <span class="o">/</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">scale_y</span> <span class="o">=</span> <span class="n">new_h</span> <span class="o">/</span> <span class="n">obj</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="p">(</span><span class="n">new_w</span><span class="p">,</span> <span class="n">new_h</span><span class="p">),</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span><span class="p">)</span>
+
+            <span class="c1"># Масштабируем повернутый прямоугольник</span>
+            <span class="n">scaled_rotated_bbox_info</span> <span class="o">=</span> <span class="n">apply_scale_to_bbox</span><span class="p">(</span><span class="n">rotated_bbox_info</span><span class="p">,</span> <span class="n">scale_x</span><span class="p">,</span> <span class="n">scale_y</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">obj</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">_</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">threshold</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="mi">127</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">THRESH_BINARY</span><span class="p">)</span>
+
+            <span class="c1"># Генерируем позицию, где объект полностью помещается в изображение</span>
+            <span class="n">placement_x</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">new_w</span><span class="p">)</span>
+            <span class="n">placement_y</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">new_h</span><span class="p">)</span>
+
+            <span class="c1"># Размещаем объект</span>
+            <span class="n">success</span><span class="p">,</span> <span class="n">bbox</span><span class="p">,</span> <span class="n">placement_offset</span><span class="p">,</span> <span class="n">updated_mask</span><span class="p">,</span> <span class="n">updated_mask_image</span> <span class="o">=</span> <span class="n">place_object</span><span class="p">(</span>
+                <span class="n">result</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">bbox_mask</span><span class="p">,</span> <span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span><span class="p">,</span> <span class="n">mask_image</span><span class="p">,</span> <span class="n">class_id</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+                <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="n">bbox</span>
+                <span class="n">placement_x</span><span class="p">,</span> <span class="n">placement_y</span> <span class="o">=</span> <span class="n">placement_offset</span>
+
+                <span class="c1"># YOLO формат для обычного bounding box</span>
+                <span class="k">if</span> <span class="n">need_bbox</span><span class="p">:</span>
+                    <span class="n">x_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">w</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">y_center</span> <span class="o">=</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">h</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">width</span> <span class="o">=</span> <span class="n">w</span> <span class="o">/</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">height</span> <span class="o">=</span> <span class="n">h</span> <span class="o">/</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">yolo_annotations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">class_id</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">x_center</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">y_center</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">width</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">height</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># YOLO OBB формат - может выходить за границы</span>
+                <span class="k">if</span> <span class="n">need_obb</span> <span class="ow">and</span> <span class="n">scaled_rotated_bbox_info</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">box_points</span><span class="p">,</span> <span class="n">rotated_rect</span> <span class="o">=</span> <span class="n">scaled_rotated_bbox_info</span>
+                    <span class="n">box_points</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+=</span> <span class="n">placement_x</span>
+                    <span class="n">box_points</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="n">placement_y</span>
+
+                    <span class="c1"># Нормализуем точки БЕЗ ограничения границами</span>
+                    <span class="n">normalized_points</span> <span class="o">=</span> <span class="n">normalize_points</span><span class="p">(</span><span class="n">box_points</span><span class="p">,</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">image_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+                    <span class="n">points_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">p</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">normalized_points</span><span class="p">])</span>
+                    <span class="n">yolo_obb_annotations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">class_id</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">points_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="n">bbox_mask</span> <span class="o">=</span> <span class="n">updated_mask</span>
+                <span class="n">mask_image</span> <span class="o">=</span> <span class="n">updated_mask_image</span>
+                <span class="k">with</span> <span class="n">distribution_lock</span><span class="p">:</span>
+                    <span class="n">class_distribution</span><span class="p">[</span><span class="n">class_id</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">placed_objects</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">avoid_intersections</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="n">intersection_lock</span><span class="p">:</span>
+                        <span class="n">intersection_attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">with</span> <span class="n">intersection_lock</span><span class="p">:</span>
+            <span class="n">intersection_stats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">intersection_attempts</span><span class="p">)</span>
+
+        <span class="c1"># Сохраняем результат</span>
+        <span class="n">base_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;image_</span><span class="si">{</span><span class="n">img_idx</span><span class="si">:</span><span class="s2">06d</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">output_img_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_image_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_name</span><span class="si">}</span><span class="s2">.jpg&quot;</span><span class="p">)</span>
+        <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="n">output_img_path</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+
+        <span class="c1"># Сохраняем разметку BBOX</span>
+        <span class="k">if</span> <span class="n">need_bbox</span> <span class="ow">and</span> <span class="n">yolo_annotations</span><span class="p">:</span>
+            <span class="n">output_txt_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_bbox_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_name</span><span class="si">}</span><span class="s2">.txt&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_txt_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">yolo_annotations</span><span class="p">))</span>
+
+        <span class="c1"># Сохраняем разметку OBB</span>
+        <span class="k">if</span> <span class="n">need_obb</span> <span class="ow">and</span> <span class="n">yolo_obb_annotations</span><span class="p">:</span>
+            <span class="n">output_obb_txt_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_obb_path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_name</span><span class="si">}</span><span class="s2">.txt&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_obb_txt_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">yolo_obb_annotations</span><span class="p">))</span>
+
+        <span class="c1"># Сохраняем маску если нужно</span>
+        <span class="k">if</span> <span class="n">need_mask</span> <span class="ow">and</span> <span class="n">mask_folder</span> <span class="ow">and</span> <span class="n">mask_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mask_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">mask_folder</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base_name</span><span class="si">}</span><span class="s2">.png&quot;</span><span class="p">)</span>
+            <span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="n">mask_filename</span><span class="p">,</span> <span class="n">mask_image</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">placed_objects</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">find_next_available_index</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Находит следующий доступный индекс для генерации, чтобы не перезаписывать существующие файлы&quot;&quot;&quot;</span>
+        <span class="n">existing_files</span> <span class="o">=</span> <span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;image_*.jpg&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">existing_files</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">existing_files</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">base_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+                <span class="n">index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">base_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">indices</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span>
+
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">indices</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_images_multithreaded</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Многопоточная генерация изображений&quot;&quot;&quot;</span>
+        <span class="n">start_index</span> <span class="o">=</span> <span class="n">find_next_available_index</span><span class="p">()</span>
+        <span class="c1"># print(f&quot;Начинаем генерацию с индекса {start_index}&quot;)</span>
+
+        <span class="c1"># Создаем список заданий для потоков</span>
+        <span class="n">image_indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">start_index</span><span class="p">,</span> <span class="n">start_index</span> <span class="o">+</span> <span class="n">num_images</span><span class="p">))</span>
+
+        <span class="c1"># print(f&quot;Запуск {num_threads} потоков для генерации {num_images} изображений...&quot;)</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+        <span class="c1"># Используем tqdm для отображения прогресса</span>
+        <span class="k">with</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_images</span><span class="p">,</span> <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Генерация изображений&quot;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;img&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">pbar</span><span class="p">:</span>
+            <span class="c1"># Используем ThreadPoolExecutor для многопоточной генерации</span>
+            <span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">num_threads</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+                <span class="c1"># Запускаем задачи</span>
+                <span class="n">future_to_index</span> <span class="o">=</span> <span class="p">{</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">generate_single_image</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span> <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">image_indices</span><span class="p">}</span>
+
+                <span class="c1"># Ожидаем завершения всех задач</span>
+                <span class="n">completed</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">future</span> <span class="ow">in</span> <span class="n">as_completed</span><span class="p">(</span><span class="n">future_to_index</span><span class="p">):</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="n">future_to_index</span><span class="p">[</span><span class="n">future</span><span class="p">]</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                        <span class="n">completed</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+                        <span class="c1"># Обновляем описание прогресс-бара</span>
+                        <span class="n">avg_objects</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">class_distribution</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">/</span> <span class="n">completed</span> <span class="k">if</span> <span class="n">completed</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+                        <span class="n">pbar</span><span class="o">.</span><span class="n">set_postfix</span><span class="p">({</span>
+                            <span class="s2">&quot;объекты/изобр&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">avg_objects</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;классы&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">class_distribution</span><span class="p">)</span>
+                        <span class="p">})</span>
+
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ошибка при генерации изображения </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">total_time</span> <span class="o">=</span> <span class="n">end_time</span> <span class="o">-</span> <span class="n">start_time</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Генерация завершена!&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Общее время: </span><span class="si">{</span><span class="n">total_time</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> секунд&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Среднее время на изображение: </span><span class="si">{</span><span class="n">total_time</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">num_images</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> секунд&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Распределение классов в сгенерированном датасете: </span><span class="si">{</span><span class="nb">dict</span><span class="p">(</span><span class="n">class_distribution</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">avoid_intersections</span> <span class="ow">and</span> <span class="n">intersection_stats</span><span class="p">:</span>
+            <span class="n">avg_intersections</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">intersection_stats</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">intersection_stats</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Среднее количество попыток размещения из-за пересечений: </span><span class="si">{</span><span class="n">avg_intersections</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Запуск генерации</span>
+    <span class="n">generate_images_multithreaded</span><span class="p">()</span></div>
+
+
+
+<span class="c1"># Сохранение обратной совместимости для запуска скрипта напрямую</span>
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="c1"># Конфигурация путей по умолчанию</span>
+    <span class="n">dataset_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;r:\tools\Датасет_Хакатон ЛЦТ_res&quot;</span>
+    <span class="n">textures_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;r:\tools\3D\textures&quot;</span>
+    <span class="n">output_path</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;r:\tools\combination_dataset_colour_fon&quot;</span>
+    <span class="n">mask_folder</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;r:\tools\combination_dataset_colour_fon\masks&quot;</span>
+    <span class="n">classes_file</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;r:\tools\classes.txt&quot;</span>
+
+    <span class="c1"># Параметры генерации по умолчанию</span>
+    <span class="n">image_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1280</span><span class="p">,</span> <span class="mi">1280</span><span class="p">)</span>
+    <span class="n">num_objects</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">num_images</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">base_scale</span> <span class="o">=</span> <span class="mf">2.5</span>
+    <span class="n">scale_variation</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.9</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">)</span>
+    <span class="n">num_threads</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">avoid_intersections</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">max_intersection_area</span> <span class="o">=</span> <span class="mf">0.1</span>  <span class="c1"># МАКСИМАЛЬНАЯ ПЛОЩАДЬ ПЕРЕСЕЧЕНИЯ 10%</span>
+    <span class="n">need_bbox</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">need_obb</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">need_mask</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="n">generate_combination_dataset</span><span class="p">(</span>
+        <span class="n">dataset_path</span><span class="o">=</span><span class="n">dataset_path</span><span class="p">,</span>
+        <span class="n">textures_path</span><span class="o">=</span><span class="n">textures_path</span><span class="p">,</span>
+        <span class="n">output_path</span><span class="o">=</span><span class="n">output_path</span><span class="p">,</span>
+        <span class="n">classes_file</span><span class="o">=</span><span class="n">classes_file</span><span class="p">,</span>
+        <span class="n">need_bbox</span><span class="o">=</span><span class="n">need_bbox</span><span class="p">,</span>
+        <span class="n">need_obb</span><span class="o">=</span><span class="n">need_obb</span><span class="p">,</span>
+        <span class="n">need_mask</span><span class="o">=</span><span class="n">need_mask</span><span class="p">,</span>
+        <span class="n">image_size</span><span class="o">=</span><span class="n">image_size</span><span class="p">,</span>
+        <span class="n">num_objects</span><span class="o">=</span><span class="n">num_objects</span><span class="p">,</span>
+        <span class="n">num_images</span><span class="o">=</span><span class="n">num_images</span><span class="p">,</span>
+        <span class="n">base_scale</span><span class="o">=</span><span class="n">base_scale</span><span class="p">,</span>
+        <span class="n">scale_variation</span><span class="o">=</span><span class="n">scale_variation</span><span class="p">,</span>
+        <span class="n">num_threads</span><span class="o">=</span><span class="n">num_threads</span><span class="p">,</span>
+        <span class="n">avoid_intersections</span><span class="o">=</span><span class="n">avoid_intersections</span><span class="p">,</span>
+        <span class="n">max_intersection_area</span><span class="o">=</span><span class="n">max_intersection_area</span>  <span class="c1"># ПЕРЕДАЕМ НОВЫЙ ПАРАМЕТР</span>
+    <span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Авторские права 2024, Your Name. </p>
+  </div>
+
+  Собрано при помощи <a href="https://www.sphinx-doc.org/">Sphinx</a> с использованием
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">темы,</a>
+    предоставленной <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
